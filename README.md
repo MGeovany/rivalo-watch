@@ -17,6 +17,24 @@ Al terminar, la sesión se sincroniza con el iPhone para su resumen visual.
 - `rivalo-ios` — app iPhone
 - `rivalo-server` — API backend
 
+## Development
+
+The Xcode project is generated from `project.yml` with [XcodeGen](https://github.com/yonaskolb/XcodeGen) and is not committed.
+
+```bash
+brew install xcodegen        # once
+xcodegen generate            # creates RivaloWatch.xcodeproj
+open RivaloWatch.xcodeproj
+```
+
+Building for the watchOS Simulator requires the watchOS platform component
+(Xcode > Settings > Components). You can type-check the sources without it:
+
+```bash
+swiftc -typecheck -sdk "$(xcrun --sdk watchsimulator --show-sdk-path)" \
+  -target arm64-apple-watchos10.0-simulator Sources/*.swift
+```
+
 ## Estado
 
 En desarrollo inicial.
