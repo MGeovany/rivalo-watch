@@ -1,23 +1,20 @@
 import SwiftUI
 
-/// Home screen: choose a mode and start a new match.
+/// Pre-match setup: start first, optional mode / format / surface / court.
 struct StartView: View {
     @ObservedObject var manager: WorkoutManager
-    @State private var mode = "quick"
+    @StateObject private var courts = CourtStore.shared
+    @StateObject private var location = CourtLocationService()
 
-    private let modes: [(id: String, label: String)] = [
-        ("quick", "Quick"),
-        ("structured", "Structured"),
-        ("training", "Training"),
-    ]
+    @State private var setup = MatchSetup.default
+    @State private var selectedMode: MatchModeOption = .quick
+    @State private var selectedFormat: FootballFormatOption = .eleven
+    @State private var selectedSurface: SurfaceOption = .turf
+    @State private var selectedCourtId: String?
 
     var body: some View {
         ScrollView {
-            VStack(spacing: Theme.Spacing.small) {
-                BrandLogo(style: .isotipo, height: 28)
-                    .frame(maxWidth: .infinity)
-                    .padding(.top, 2)
-
+            VStack(spacing: Theme.Spacing.medium) {
                 if let error = manager.errorMessage {
                     Text(error)
                         .font(Theme.Typography.caption())
@@ -25,29 +22,223 @@ struct StartView: View {
                         .foregroundStyle(Theme.Colors.accent)
                 }
 
-                Picker("Mode", selection: $mode) {
-                    ForEach(modes, id: \.id) { item in
-                        Text(item.label).tag(item.id)
-                    }
-                }
-                .pickerStyle(.wheel)
-                .frame(height: 100)
+                startButton
 
-                Button {
-                    Task { await manager.start(mode: mode) }
-                } label: {
-                    Text("Start match")
-                        .font(Theme.Typography.button())
-                        .foregroundStyle(Theme.Colors.accent)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 12)
-                }
-                .buttonStyle(.plain)
-                .overlay(Capsule().stroke(Theme.Colors.accent, lineWidth: 1.5))
-                .padding(.top, 4)
+                modeSection
+                formatSection
+                surfaceSection
+                courtSection
             }
             .padding(.horizontal, Theme.Spacing.medium)
-            .padding(.bottom, Theme.Spacing.small)
+            .padding(.vertical, Theme.Spacing.small)
         }
+        .onAppear {
+            location.requestLocation()
+            courts.refreshNearby(latitude: location.latitude, longitude: location.longitude)
+        }
+        .onChange(of: location.latitude) { _, _ in
+            courts.refreshNearby(latitude: location.latitude, longitude: location.longitude)
+        }
+    }
+
+    // MARK: - Start (top)
+
+    private var startButton: some View {
+        Button {
+            Task { await manager.start(setup: buildSetup()) }
+        } label: {
+            Text("Start match")
+                .font(Theme.Typography.button(size: 16))
+                .foregroundStyle(Color.black)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
+                .background(
+                    Capsule()
+                        .fill(
+                            LinearGradient(
+                                colors: [Theme.Colors.accentBright, Theme.Colors.accent],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                )
+        }
+        .buttonStyle(.plain)
+        .padding(.bottom, 4)
+    }
+
+    // MARK: - Sections
+
+    private var modeSection: some View {
+        WatchSetupSection(title: "Mode") {
+            VStack(spacing: 6) {
+                ForEach(MatchModeOption.allCases) { option in
+                    WatchSetupChip(
+                        title: option.label,
+                        isSelected: selectedMode == option
+                    ) {
+                        selectedMode = option
+                    }
+                }
+            }
+        }
+    }
+
+    private var formatSection: some View {
+        WatchSetupSection(title: "Football") {
+            HStack(spacing: 6) {
+                ForEach(FootballFormatOption.allCases) { option in
+                    WatchSetupChip(
+                        title: option.shortLabel,
+                        isSelected: selectedFormat == option,
+                        compact: true
+                    ) {
+                        selectedFormat = option
+                    }
+                }
+            }
+        }
+    }
+
+    private var surfaceSection: some View {
+        WatchSetupSection(title: "Surface") {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 6) {
+                    ForEach(SurfaceOption.allCases) { option in
+                        WatchSetupChip(
+                            title: option.shortLabel,
+                            isSelected: selectedSurface == option,
+                            compact: true
+                        ) {
+                            selectedSurface = option
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private var courtSection: some View {
+        WatchSetupSection(title: "Court") {
+            VStack(alignment: .leading, spacing: 6) {
+                if let status = location.status {
+                    Text(status)
+                        .font(Theme.Typography.caption(size: 11))
+                        .foregroundStyle(Theme.Colors.textSecondary)
+                }
+
+                WatchSetupChip(
+                    title: "No court",
+                    subtitle: "Set later on iPhone",
+                    isSelected: selectedCourtId == nil
+                ) {
+                    selectedCourtId = nil
+                }
+
+                ForEach(courts.nearbyCourts.prefix(4)) { court in
+                    WatchSetupChip(
+                        title: court.name,
+                        subtitle: courtSubtitle(court),
+                        isSelected: selectedCourtId == court.id
+                    ) {
+                        selectedCourtId = court.id
+                    }
+                }
+            }
+        }
+    }
+
+    private func courtSubtitle(_ court: SavedCourt) -> String? {
+        if let meters = court.distanceM {
+            if meters < 200 {
+                return String(format: "%.0f m away", meters)
+            }
+            return String(format: "%.1f km", meters / 1000)
+        }
+        if court.playCount > 0 {
+            return "\(court.playCount) matches here"
+        }
+        return nil
+    }
+
+    private func buildSetup() -> MatchSetup {
+        let court = courts.nearbyCourts.first { $0.id == selectedCourtId }
+        return MatchSetup(
+            mode: selectedMode.rawValue,
+            matchType: selectedFormat.rawValue,
+            surface: selectedSurface.rawValue,
+            pitchId: selectedCourtId,
+            pitchName: court?.name,
+            pitchLatitude: court?.latitude,
+            pitchLongitude: court?.longitude
+        ).resolved
+    }
+}
+
+// MARK: - Components
+
+private struct WatchSetupSection<Content: View>: View {
+    let title: String
+    @ViewBuilder var content: () -> Content
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title.uppercased())
+                .font(Theme.Typography.statLabel(size: 9))
+                .foregroundStyle(Theme.Colors.textSecondary)
+                .tracking(0.8)
+
+            content()
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(10)
+        .background(Theme.Colors.surface)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .overlay {
+            RoundedRectangle(cornerRadius: 12)
+                .strokeBorder(Color.white.opacity(0.08), lineWidth: 1)
+        }
+    }
+}
+
+private struct WatchSetupChip: View {
+    let title: String
+    var subtitle: String?
+    let isSelected: Bool
+    var compact = false
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(Theme.Typography.body(size: compact ? 13 : 14))
+                    .foregroundStyle(isSelected ? Theme.Colors.accent : Theme.Colors.textPrimary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+
+                if let subtitle {
+                    Text(subtitle)
+                        .font(Theme.Typography.caption(size: 10))
+                        .foregroundStyle(Theme.Colors.textSecondary)
+                        .lineLimit(1)
+                }
+            }
+            .frame(maxWidth: compact ? nil : .infinity, alignment: .leading)
+            .padding(.horizontal, compact ? 10 : 12)
+            .padding(.vertical, compact ? 8 : 10)
+            .background(
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(isSelected ? Theme.Colors.accent.opacity(0.15) : Color.white.opacity(0.04))
+            )
+            .overlay {
+                RoundedRectangle(cornerRadius: 10)
+                    .strokeBorder(
+                        isSelected ? Theme.Colors.accent.opacity(0.7) : Color.white.opacity(0.06),
+                        lineWidth: isSelected ? 1.5 : 1
+                    )
+            }
+        }
+        .buttonStyle(.plain)
     }
 }

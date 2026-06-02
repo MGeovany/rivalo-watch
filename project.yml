@@ -33,6 +33,7 @@ targets:
           UIColorName: LaunchBackground
           UIImageName: Isotipo
           UIImageRespectsSafeAreaInsets: true
+        NSLocationWhenInUseUsageDescription: Rivalo uses your location to suggest courts you have played at before.
         NSHealthShareUsageDescription: Rivalo reads your heart rate, distance and energy during a match to build your performance summary.
         NSHealthUpdateUsageDescription: Rivalo saves each match as a workout in the Health app.
         WKBackgroundModes:

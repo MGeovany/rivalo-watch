@@ -23,6 +23,9 @@ final class WorkoutManager: NSObject, ObservableObject {
 
     /// Selected match mode: "quick", "structured" or "training".
     @Published var mode: String = "quick"
+    private var matchSetup = MatchSetup.default
+    private var startLatitude: Double?
+    private var startLongitude: Double?
     /// True while paused at half-time of a structured match.
     @Published var isHalftime: Bool = false
     /// Current half (1 or 2) for structured matches.
@@ -52,9 +55,13 @@ final class WorkoutManager: NSObject, ObservableObject {
 
     /// Starts a new match: requests authorization, opens a workout session and
     /// begins collecting live data.
-    func start(mode: String = "quick") async {
+    func start(setup: MatchSetup = .default) async {
         guard phase == .idle else { return }
-        self.mode = mode
+        let resolved = setup.resolved
+        matchSetup = resolved
+        mode = resolved.mode
+        startLatitude = CourtLocationService.sharedLastLatitude
+        startLongitude = CourtLocationService.sharedLastLongitude
         guard HKHealthStore.isHealthDataAvailable() else {
             errorMessage = "Health data is not available on this device."
             return
@@ -223,24 +230,38 @@ final class WorkoutManager: NSObject, ObservableObject {
         let kcal = builder.statistics(for: HKQuantityType(.activeEnergyBurned))?
             .sumQuantity()?.doubleValue(for: .kilocalorie())
 
-        return WorkoutSummary(
+        let summary = WorkoutSummary(
             startedAt: start,
             endedAt: end,
             durationS: Int(end.timeIntervalSince(start)),
             distanceM: distance,
             hrAvg: hrAvg.map { Int($0.rounded()) },
             hrMax: hrMax.map { Int($0.rounded()) },
-            // speed_max and sprints need a per-sample speed series; left for a
-            // later phase. Intensity is a simple normalization of average HR.
             speedMaxKmh: nil,
             sprints: 0,
             intensity: hrAvg.map(intensity(fromAverageHR:)),
             caloriesKcal: kcal,
             source: "watch",
             mode: mode,
+            matchType: matchSetup.matchType,
+            surface: matchSetup.surface,
+            pitchId: matchSetup.pitchId,
+            pitchName: matchSetup.pitchName,
+            pitchLatitude: matchSetup.pitchLatitude,
+            pitchLongitude: matchSetup.pitchLongitude,
             halftimeOffsetS: halftimeOffsetS,
             samples: samples
         )
+
+        if let pitchId = matchSetup.pitchId {
+            CourtStore.shared.recordVisit(
+                pitchId: pitchId,
+                at: startLatitude,
+                longitude: startLongitude
+            )
+        }
+
+        return summary
     }
 
     /// Maps an average heart rate to a 0-100 effort score (simple MVP heuristic).

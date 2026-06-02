@@ -20,7 +20,7 @@ struct ContentView: View {
         .foregroundStyle(Theme.Colors.textPrimary)
         .onReceive(NotificationCenter.default.publisher(for: .rivaloStartMatchFromPhone)) { _ in
             guard manager.phase == .idle else { return }
-            Task { await manager.start() }
+            Task { await manager.start(setup: .default) }
         }
     }
 }

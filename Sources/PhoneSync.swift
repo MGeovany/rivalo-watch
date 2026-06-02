@@ -42,6 +42,11 @@ final class PhoneSync: NSObject, WCSessionDelegate, @unchecked Sendable {
     }
 
     func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String: Any]) {
+        if let courts = applicationContext["courts"] as? [[String: Any]] {
+            Task { @MainActor in
+                CourtStore.shared.mergeFromPhone(courts)
+            }
+        }
         if isStartMatch(applicationContext) {
             postStartMatch()
         }

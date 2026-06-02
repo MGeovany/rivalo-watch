@@ -25,6 +25,12 @@ struct WorkoutSummary: Equatable {
     var caloriesKcal: Double?
     var source: String
     var mode: String
+    var matchType: String?
+    var surface: String?
+    var pitchId: String?
+    var pitchName: String?
+    var pitchLatitude: Double?
+    var pitchLongitude: Double?
     var halftimeOffsetS: Int?
     var samples: [Sample]
 
@@ -41,6 +47,12 @@ struct WorkoutSummary: Equatable {
             "source": source,
             "mode": mode,
         ]
+        if let matchType { dict["match_type"] = matchType }
+        if let surface { dict["surface"] = surface }
+        if let pitchId { dict["pitch_id"] = pitchId }
+        if let pitchName { dict["pitch_name"] = pitchName }
+        if let pitchLatitude { dict["pitch_latitude"] = pitchLatitude }
+        if let pitchLongitude { dict["pitch_longitude"] = pitchLongitude }
         if let hrAvg { dict["hr_avg"] = hrAvg }
         if let hrMax { dict["hr_max"] = hrMax }
         if let speedMaxKmh { dict["speed_max_kmh"] = speedMaxKmh }

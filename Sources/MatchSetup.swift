@@ -1,0 +1,89 @@
+import Foundation
+
+/// Pre-match choices on the watch. Unset fields use defaults when starting.
+struct MatchSetup: Equatable {
+    var mode: String
+    var matchType: String
+    var surface: String
+    var pitchId: String?
+    var pitchName: String?
+    var pitchLatitude: Double?
+    var pitchLongitude: Double?
+
+    static let `default` = MatchSetup(
+        mode: "quick",
+        matchType: "11-a-side",
+        surface: "Artificial turf",
+        pitchId: nil,
+        pitchName: nil,
+        pitchLatitude: nil,
+        pitchLongitude: nil
+    )
+
+    /// Resolved values sent to HealthKit / phone (never empty).
+    var resolved: MatchSetup {
+        MatchSetup(
+            mode: mode.isEmpty ? "quick" : mode,
+            matchType: matchType.isEmpty ? "11-a-side" : matchType,
+            surface: surface.isEmpty ? "Artificial turf" : surface,
+            pitchId: pitchId,
+            pitchName: pitchName,
+            pitchLatitude: pitchLatitude,
+            pitchLongitude: pitchLongitude
+        )
+    }
+}
+
+enum MatchModeOption: String, CaseIterable, Identifiable {
+    case quick
+    case structured
+    case training
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .quick: "Quick"
+        case .structured: "Structured"
+        case .training: "Training"
+        }
+    }
+}
+
+enum FootballFormatOption: String, CaseIterable, Identifiable {
+    case five = "5-a-side"
+    case seven = "7-a-side"
+    case nine = "9-a-side"
+    case eleven = "11-a-side"
+
+    var id: String { rawValue }
+
+    var shortLabel: String {
+        switch self {
+        case .five: "5v5"
+        case .seven: "7v7"
+        case .nine: "9v9"
+        case .eleven: "11v11"
+        }
+    }
+}
+
+enum SurfaceOption: String, CaseIterable, Identifiable {
+    case natural = "Natural grass"
+    case turf = "Artificial turf"
+    case indoor = "Indoor"
+    case concrete = "Concrete"
+    case other = "Other"
+
+    var id: String { rawValue }
+
+    var shortLabel: String {
+        switch self {
+        case .natural: "Grass"
+        case .turf: "Turf"
+        case .indoor: "Indoor"
+        case .concrete: "Concrete"
+        case .other: "Other"
+        }
+    }
+}
