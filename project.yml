@@ -20,11 +20,22 @@ targets:
       - path: Sources
     info:
       path: Sources/Info.plist
+      properties:
+        UIAppFonts:
+          - Michroma-Regular.ttf
+          - Rajdhani-Regular.ttf
+          - Rajdhani-Medium.ttf
+          - Rajdhani-SemiBold.ttf
+          - Rajdhani-Bold.ttf
+          - SpaceMono-Regular.ttf
+          - SpaceMono-Bold.ttf
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.mgeovany.rivalo.watchkitapp
         GENERATE_INFOPLIST_FILE: true
         INFOPLIST_KEY_WKApplication: true
+        INFOPLIST_KEY_WKCompanionAppBundleIdentifier: com.mgeovany.rivalo
         INFOPLIST_KEY_CFBundleDisplayName: Rivalo
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        SKIP_INSTALL: false

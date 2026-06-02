@@ -18,5 +18,19 @@
 	<string>1.0</string>
 	<key>CFBundleVersion</key>
 	<string>1</string>
+	<key>UIAppFonts</key>
+	<array>
+		<string>Michroma-Regular.ttf</string>
+		<string>Rajdhani-Regular.ttf</string>
+		<string>Rajdhani-Medium.ttf</string>
+		<string>Rajdhani-SemiBold.ttf</string>
+		<string>Rajdhani-Bold.ttf</string>
+		<string>SpaceMono-Regular.ttf</string>
+		<string>SpaceMono-Bold.ttf</string>
+	</array>
+	<key>WKApplication</key>
+	<true/>
+	<key>WKCompanionAppBundleIdentifier</key>
+	<string>com.mgeovany.rivalo</string>
 </dict>
 </plist>

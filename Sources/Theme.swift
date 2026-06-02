@@ -22,32 +22,42 @@ enum Theme {
             static let spaceMonoBold = "SpaceMono-Bold"
         }
 
-        static func logo(size: CGFloat = 18) -> Font {
-            .custom(Family.logo, size: size)
+        static func logo(size: CGFloat = 20) -> Font {
+            ThemeFont.font(name: Family.logo, size: size)
         }
 
         static func title(size: CGFloat = 16) -> Font {
-            .custom(Family.rajdhaniSemiBold, size: size)
+            ThemeFont.font(name: Family.rajdhaniSemiBold, size: size)
         }
 
         static func button(size: CGFloat = 15) -> Font {
-            .custom(Family.rajdhaniSemiBold, size: size)
+            ThemeFont.font(name: Family.rajdhaniSemiBold, size: size)
         }
 
         static func body(size: CGFloat = 14) -> Font {
-            .custom(Family.rajdhaniRegular, size: size)
+            ThemeFont.font(name: Family.rajdhaniRegular, size: size)
         }
 
         static func caption(size: CGFloat = 13) -> Font {
-            .custom(Family.rajdhaniMedium, size: size)
+            ThemeFont.font(name: Family.rajdhaniMedium, size: size)
         }
 
         static func metric(size: CGFloat = 28) -> Font {
-            .custom(Family.spaceMonoBold, size: size)
+            ThemeFont.font(name: Family.spaceMonoBold, size: size)
         }
 
         static func statLabel(size: CGFloat = 12) -> Font {
-            .custom(Family.spaceMonoRegular, size: size)
+            ThemeFont.font(name: Family.spaceMonoRegular, size: size)
         }
+    }
+
+    enum Spacing {
+        static let small: CGFloat = 6
+        static let medium: CGFloat = 10
+        static let large: CGFloat = 16
+    }
+
+    enum Radius {
+        static let button: CGFloat = 20
     }
 }
