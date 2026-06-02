@@ -42,9 +42,13 @@ final class PhoneSync: NSObject, WCSessionDelegate, @unchecked Sendable {
     }
 
     func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String: Any]) {
-        if let courts = applicationContext["courts"] as? [[String: Any]] {
-            Task { @MainActor in
-                CourtStore.shared.mergeFromPhone(courts)
+        if let courts = applicationContext["courts"] as? [[String: Any]],
+           let data = try? JSONSerialization.data(withJSONObject: courts) {
+            DispatchQueue.main.async {
+                guard let decoded = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
+                    return
+                }
+                CourtStore.shared.mergeFromPhone(decoded)
             }
         }
         if isStartMatch(applicationContext) {
