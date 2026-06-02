@@ -25,27 +25,13 @@ struct StartView: View {
                         .foregroundStyle(Theme.Colors.accent)
                 }
 
-                ForEach(modes, id: \.id) { item in
-                    Button {
-                        mode = item.id
-                    } label: {
-                        HStack {
-                            Text(item.label)
-                                .font(Theme.Typography.button(size: 15))
-                            Spacer()
-                            if mode == item.id {
-                                Image(systemName: "checkmark.circle.fill")
-                            }
-                        }
-                        .padding(.vertical, 8)
-                        .padding(.horizontal, 12)
-                        .frame(maxWidth: .infinity)
+                Picker("Mode", selection: $mode) {
+                    ForEach(modes, id: \.id) { item in
+                        Text(item.label).tag(item.id)
                     }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(mode == item.id ? Color.black : Theme.Colors.textPrimary)
-                    .background(mode == item.id ? Theme.Colors.accent : Theme.Colors.surface)
-                    .clipShape(Capsule())
                 }
+                .pickerStyle(.wheel)
+                .frame(height: 100)
 
                 Button {
                     Task { await manager.start(mode: mode) }
