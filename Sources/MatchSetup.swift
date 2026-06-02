@@ -1,7 +1,7 @@
 import Foundation
 
 /// Pre-match choices on the watch. Unset fields use defaults when starting.
-struct MatchSetup: Equatable {
+struct MatchSetup: Equatable, Codable {
     var mode: String
     var matchType: String
     var surface: String
@@ -95,5 +95,23 @@ enum SurfaceOption: String, CaseIterable, Identifiable {
         case .concrete: "Concrete"
         case .other: "Other"
         }
+    }
+}
+
+// MARK: - Last setup persistence
+
+enum LastSetupStore {
+    private static let key = "lastMatchSetup"
+
+    static func save(_ setup: MatchSetup) {
+        guard let data = try? JSONEncoder().encode(setup) else { return }
+        UserDefaults.standard.set(data, forKey: key)
+    }
+
+    static func load() -> MatchSetup? {
+        guard let data = UserDefaults.standard.data(forKey: key),
+              let setup = try? JSONDecoder().decode(MatchSetup.self, from: data)
+        else { return nil }
+        return setup
     }
 }

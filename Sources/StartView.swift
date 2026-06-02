@@ -23,6 +23,17 @@ struct StartView: View {
                     )
                 }
         }
+        .onAppear {
+            restoreLastSetup()
+        }
+    }
+
+    private func restoreLastSetup() {
+        guard let last = LastSetupStore.load() else { return }
+        selectedMode = MatchModeOption(rawValue: last.mode) ?? .quick
+        selectedFormat = FootballFormatOption(rawValue: last.matchType) ?? .eleven
+        selectedSurface = SurfaceOption(rawValue: last.surface) ?? .turf
+        selectedCourtId = last.pitchId
     }
 
     private var startScroll: some View {
@@ -247,7 +258,7 @@ struct StartView: View {
 
     private func buildSetup() -> MatchSetup {
         let court = courts.nearbyCourts.first { $0.id == selectedCourtId }
-        return MatchSetup(
+        let setup = MatchSetup(
             mode: selectedMode.rawValue,
             matchType: selectedFormat.rawValue,
             surface: selectedSurface.rawValue,
@@ -256,6 +267,8 @@ struct StartView: View {
             pitchLatitude: court?.latitude,
             pitchLongitude: court?.longitude
         ).resolved
+        LastSetupStore.save(setup)
+        return setup
     }
 }
 
