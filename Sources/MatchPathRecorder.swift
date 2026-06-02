@@ -75,11 +75,11 @@ extension MatchPathRecorder: CLLocationManagerDelegate {
     }
 
     nonisolated func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
-        let status = manager.authorizationStatus
         Task { @MainActor in
             guard self.isRecording else { return }
+            let status = self.manager.authorizationStatus
             if status == .authorizedWhenInUse || status == .authorizedAlways {
-                manager.startUpdatingLocation()
+                self.manager.startUpdatingLocation()
             }
         }
     }
