@@ -44,6 +44,7 @@ final class WorkoutManager: NSObject, ObservableObject {
     /// Starts a new match: requests authorization, opens a workout session and
     /// begins collecting live data.
     func start() async {
+        guard phase == .idle else { return }
         guard HKHealthStore.isHealthDataAvailable() else {
             errorMessage = "Health data is not available on this device."
             return
