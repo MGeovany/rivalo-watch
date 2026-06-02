@@ -28,9 +28,5 @@
 		<string>SpaceMono-Regular.ttf</string>
 		<string>SpaceMono-Bold.ttf</string>
 	</array>
-	<key>WKApplication</key>
-	<true/>
-	<key>WKCompanionAppBundleIdentifier</key>
-	<string>com.mgeovany.rivalo</string>
 </dict>
 </plist>
