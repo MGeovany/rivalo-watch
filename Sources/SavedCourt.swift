@@ -8,6 +8,9 @@ struct SavedCourt: Equatable, Codable, Identifiable {
     var longitude: Double
     var lastPlayedAt: Date?
     var playCount: Int
+    var lengthM: Double?
+    var widthM: Double?
+    var measurementMethod: String?
 
     var distanceM: Double?
 

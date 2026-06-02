@@ -4,6 +4,13 @@ import HealthKit
 /// Drives a match capture using a HealthKit workout session: start, live
 /// metrics (heart rate, distance, energy), pause/resume, and finish with
 /// aggregate computation.
+/// Playing phase for football-style matches on the watch.
+enum MatchSegment: Equatable {
+    case firstHalf
+    case halftimeBreak
+    case secondHalf
+}
+
 @MainActor
 final class WorkoutManager: NSObject, ObservableObject {
     enum Phase: Equatable {
@@ -26,12 +33,23 @@ final class WorkoutManager: NSObject, ObservableObject {
     private var matchSetup = MatchSetup.default
     private var startLatitude: Double?
     private var startLongitude: Double?
-    /// True while paused at half-time of a structured match.
-    @Published var isHalftime: Bool = false
-    /// Current half (1 or 2) for structured matches.
+    /// Match segment for quick / structured modes (halves + break).
+    @Published private(set) var matchSegment: MatchSegment = .firstHalf
+    /// Elapsed break time while in `.halftimeBreak`.
+    @Published var breakElapsed: TimeInterval = 0
+
+    /// Current half (1 or 2) for half-based modes.
     @Published private(set) var currentHalf = 1
 
+    var usesHalfFlow: Bool {
+        mode == "structured" || mode == "quick"
+    }
+
+    var isHalftime: Bool { matchSegment == .halftimeBreak }
+
     private var halftimeOffsetS: Int?
+    private var breakStartedAt: Date?
+    private var breakTimerTask: Task<Void, Never>?
 
     private let healthStore = HKHealthStore()
     private var session: HKWorkoutSession?
@@ -49,7 +67,38 @@ final class WorkoutManager: NSObject, ObservableObject {
     override init() {
         super.init()
         PhoneSync.shared.activate()
+        observePhoneCommands()
     }
+
+    private func observePhoneCommands() {
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(handlePauseFromPhone),
+            name: .rivaloMatchPause, object: nil
+        )
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(handleResumeFromPhone),
+            name: .rivaloMatchResume, object: nil
+        )
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(handleHalftimeFromPhone),
+            name: .rivaloMatchHalftime, object: nil
+        )
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(handleEndFromPhone),
+            name: .rivaloMatchEnd, object: nil
+        )
+    }
+
+    @objc private func handlePauseFromPhone() { pause() }
+    @objc private func handleResumeFromPhone() {
+        if matchSegment == .halftimeBreak {
+            startSecondHalf()
+        } else {
+            resume()
+        }
+    }
+    @objc private func handleHalftimeFromPhone() { finishFirstHalf() }
+    @objc private func handleEndFromPhone() { Task { await end() } }
 
     // MARK: - Lifecycle
 
@@ -105,28 +154,67 @@ final class WorkoutManager: NSObject, ObservableObject {
         phase = .running
     }
 
-    /// Structured match: pause at half-time.
-    func markHalftime() {
-        guard mode == "structured", phase == .running else { return }
+    /// Ends the first half and starts the break clock.
+    func finishFirstHalf() {
+        guard usesHalfFlow, matchSegment == .firstHalf, phase == .running else { return }
         session?.pause()
         phase = .paused
-        isHalftime = true
+        matchSegment = .halftimeBreak
+        breakStartedAt = Date()
+        breakElapsed = 0
+        startBreakTimer()
     }
 
-    /// Structured match: resume into the second half, recording the boundary.
+    /// Resumes play for the second half.
     func startSecondHalf() {
-        guard mode == "structured", isHalftime else { return }
+        guard usesHalfFlow, matchSegment == .halftimeBreak else { return }
         halftimeOffsetS = Int(elapsed)
         currentHalf = 2
-        isHalftime = false
+        matchSegment = .secondHalf
+        breakStartedAt = nil
+        breakTimerTask?.cancel()
         session?.resume()
         phase = .running
+    }
+
+    /// Discards second-half data and returns to the first half (no undo).
+    func restartFirstHalf() {
+        guard usesHalfFlow, matchSegment == .secondHalf else { return }
+        if let offset = halftimeOffsetS {
+            samples.removeAll { $0.tOffsetS >= offset }
+        } else {
+            samples.removeAll { $0.half == 2 }
+        }
+        halftimeOffsetS = nil
+        currentHalf = 1
+        matchSegment = .firstHalf
+        breakElapsed = 0
+        breakStartedAt = nil
+        session?.resume()
+        phase = .running
+    }
+
+    /// Seconds shown on the main clock for the current segment.
+    var primaryClockSeconds: Int {
+        switch matchSegment {
+        case .halftimeBreak:
+            Int(breakElapsed)
+        case .secondHalf:
+            if let offset = halftimeOffsetS {
+                max(0, Int(elapsed) - offset)
+            } else {
+                Int(elapsed)
+            }
+        case .firstHalf:
+            Int(elapsed)
+        }
     }
 
     /// Ends the match, finalizes collection and computes the aggregate summary.
     func end() async {
         guard let session, let builder, let startDate else { return }
         timerTask?.cancel()
+        breakTimerTask?.cancel()
 
         let end = Date()
         session.end()
@@ -179,12 +267,28 @@ final class WorkoutManager: NSObject, ObservableObject {
         lastSampleAt = -sampleIntervalS
         currentHalf = 1
         halftimeOffsetS = nil
-        isHalftime = false
+        matchSegment = .firstHalf
+        breakElapsed = 0
+        breakStartedAt = nil
+        breakTimerTask?.cancel()
+    }
+
+    private func startBreakTimer() {
+        breakTimerTask?.cancel()
+        breakTimerTask = Task { @MainActor [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(1))
+                guard let self, self.matchSegment == .halftimeBreak,
+                      let start = self.breakStartedAt else { continue }
+                self.breakElapsed = Date().timeIntervalSince(start)
+            }
+        }
     }
 
     private func startTimer() {
         timerTask?.cancel()
         timerTask = Task { @MainActor [weak self] in
+            var lastEventSent = -5
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(1))
                 guard let self, self.phase == .running else { continue }
@@ -197,8 +301,26 @@ final class WorkoutManager: NSObject, ObservableObject {
                         tOffsetS: offset,
                         hr: self.heartRate > 0 ? Int(self.heartRate) : nil,
                         speedKmh: nil,
-                        half: self.mode == "structured" ? self.currentHalf : nil
+                        half: self.usesHalfFlow ? self.currentHalf : nil
                     ))
+                }
+
+                // Send live event to iPhone every 5 seconds.
+                if offset - lastEventSent >= 5 {
+                    lastEventSent = offset
+                    let segment: String
+                    switch self.matchSegment {
+                    case .firstHalf: segment = "firstHalf"
+                    case .halftimeBreak: segment = "halftimeBreak"
+                    case .secondHalf: segment = "secondHalf"
+                    }
+                    PhoneSync.shared.sendLiveEvent(
+                        mode: self.mode,
+                        elapsedS: self.primaryClockSeconds,
+                        heartRate: Int(self.heartRate),
+                        distanceM: self.distanceM,
+                        segment: segment
+                    )
                 }
             }
         }

@@ -11,8 +11,18 @@ struct StartView: View {
     @State private var selectedFormat: FootballFormatOption = .eleven
     @State private var selectedSurface: SurfaceOption = .turf
     @State private var selectedCourtId: String?
+    @State private var showMeasureCourt = false
 
     var body: some View {
+        NavigationStack {
+            startScroll
+                .navigationDestination(isPresented: $showMeasureCourt) {
+                    MeasureCourtView()
+                }
+        }
+    }
+
+    private var startScroll: some View {
         ScrollView {
             VStack(spacing: Theme.Spacing.medium) {
                 if let error = manager.errorMessage {
@@ -23,6 +33,7 @@ struct StartView: View {
                 }
 
                 startButton
+                measureCourtButton
 
                 modeSection
                 formatSection
@@ -67,6 +78,34 @@ struct StartView: View {
         .padding(.bottom, 4)
     }
 
+    private var measureCourtButton: some View {
+        Button {
+            showMeasureCourt = true
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "ruler")
+                    .font(.system(size: 14, weight: .semibold))
+                Text("Measure court")
+                    .font(Theme.Typography.button(size: 15))
+            }
+            .foregroundStyle(Theme.Colors.accent)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 11)
+            .background(
+                Capsule()
+                    .strokeBorder(
+                        LinearGradient(
+                            colors: [Theme.Colors.accentBright.opacity(0.8), Theme.Colors.accent],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        ),
+                        lineWidth: 1.5
+                    )
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
     // MARK: - Sections
 
     private var modeSection: some View {
@@ -86,17 +125,7 @@ struct StartView: View {
 
     private var formatSection: some View {
         WatchSetupSection(title: "Football") {
-            HStack(spacing: 6) {
-                ForEach(FootballFormatOption.allCases) { option in
-                    WatchSetupChip(
-                        title: option.shortLabel,
-                        isSelected: selectedFormat == option,
-                        compact: true
-                    ) {
-                        selectedFormat = option
-                    }
-                }
-            }
+            WatchFootballFormatGrid(selection: $selectedFormat)
         }
     }
 
@@ -149,6 +178,9 @@ struct StartView: View {
     }
 
     private func courtSubtitle(_ court: SavedCourt) -> String? {
+        if let length = court.lengthM, let width = court.widthM, length > 0, width > 0 {
+            return String(format: "%.0f × %.0f m", length, width)
+        }
         if let meters = court.distanceM {
             if meters < 200 {
                 return String(format: "%.0f m away", meters)
@@ -176,6 +208,53 @@ struct StartView: View {
 }
 
 // MARK: - Components
+
+/// 2×2 grid so player counts (5 / 7 / 9 / 11) stay legible on narrow watch screens.
+private struct WatchFootballFormatGrid: View {
+    @Binding var selection: FootballFormatOption
+
+    private let columns = [
+        GridItem(.flexible(), spacing: 6),
+        GridItem(.flexible(), spacing: 6),
+    ]
+
+    var body: some View {
+        LazyVGrid(columns: columns, spacing: 6) {
+            ForEach(FootballFormatOption.allCases) { option in
+                Button {
+                    selection = option
+                } label: {
+                    Text(option.watchCount)
+                        .font(Theme.Typography.metric(size: 26))
+                        .foregroundStyle(
+                            selection == option ? Theme.Colors.accent : Theme.Colors.textPrimary
+                        )
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                    .background(
+                        RoundedRectangle(cornerRadius: 10)
+                            .fill(
+                                selection == option
+                                    ? Theme.Colors.accent.opacity(0.15)
+                                    : Color.white.opacity(0.04)
+                            )
+                    )
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 10)
+                            .strokeBorder(
+                                selection == option
+                                    ? Theme.Colors.accent.opacity(0.7)
+                                    : Color.white.opacity(0.06),
+                                lineWidth: selection == option ? 1.5 : 1
+                            )
+                    }
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(option.shortLabel)
+            }
+        }
+    }
+}
 
 private struct WatchSetupSection<Content: View>: View {
     let title: String

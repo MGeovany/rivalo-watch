@@ -66,6 +66,16 @@ enum FootballFormatOption: String, CaseIterable, Identifiable {
         case .eleven: "11v11"
         }
     }
+
+    /// Large digit for the watch grid (avoids truncation in a 4-across row).
+    var watchCount: String {
+        switch self {
+        case .five: "5"
+        case .seven: "7"
+        case .nine: "9"
+        case .eleven: "11"
+        }
+    }
 }
 
 enum SurfaceOption: String, CaseIterable, Identifiable {

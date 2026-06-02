@@ -41,6 +41,31 @@ final class CourtStore: ObservableObject {
             }
     }
 
+    func saveMeasuredCourt(
+        name: String,
+        lengthM: Double,
+        widthM: Double,
+        latitude: Double?,
+        longitude: Double?
+    ) {
+        let id = UUID().uuidString
+        let lat = latitude ?? courts.first?.latitude ?? 14.0723
+        let lon = longitude ?? courts.first?.longitude ?? -87.1921
+        courts.append(SavedCourt(
+            id: id,
+            name: name,
+            latitude: lat,
+            longitude: lon,
+            lastPlayedAt: Date(),
+            playCount: 0,
+            lengthM: lengthM,
+            widthM: widthM,
+            measurementMethod: PitchMeasurementMethod.walk.rawValue
+        ))
+        persist()
+        refreshNearby(latitude: latitude, longitude: longitude)
+    }
+
     func recordVisit(pitchId: String, at latitude: Double?, longitude: Double?) {
         guard let index = courts.firstIndex(where: { $0.id == pitchId }) else { return }
         courts[index].lastPlayedAt = Date()
@@ -68,12 +93,18 @@ final class CourtStore: ObservableObject {
                 return nil
             }()
             let count = item["play_count"] as? Int ?? 1
+            let lengthM = item["length_m"] as? Double
+            let widthM = item["width_m"] as? Double
+            let method = item["measurement_method"] as? String
 
             if let index = courts.firstIndex(where: { $0.id == id }) {
                 courts[index].name = name
                 courts[index].latitude = lat
                 courts[index].longitude = lon
                 courts[index].playCount = max(courts[index].playCount, count)
+                if let lengthM { courts[index].lengthM = lengthM }
+                if let widthM { courts[index].widthM = widthM }
+                if let method { courts[index].measurementMethod = method }
                 if let lastPlayed {
                     courts[index].lastPlayedAt = max(courts[index].lastPlayedAt ?? .distantPast, lastPlayed)
                 }
@@ -84,7 +115,10 @@ final class CourtStore: ObservableObject {
                     latitude: lat,
                     longitude: lon,
                     lastPlayedAt: lastPlayed,
-                    playCount: count
+                    playCount: count,
+                    lengthM: lengthM,
+                    widthM: widthM,
+                    measurementMethod: method
                 ))
             }
         }
