@@ -21,6 +21,14 @@ final class WorkoutManager: NSObject, ObservableObject {
     @Published var summary: WorkoutSummary?
     @Published var errorMessage: String?
 
+    /// Selected match mode: "quick", "structured" or "training".
+    @Published var mode: String = "quick"
+    /// True while paused at half-time of a structured match.
+    @Published var isHalftime: Bool = false
+
+    private var currentHalf = 1
+    private var halftimeOffsetS: Int?
+
     private let healthStore = HKHealthStore()
     private var session: HKWorkoutSession?
     private var builder: HKLiveWorkoutBuilder?
@@ -43,8 +51,9 @@ final class WorkoutManager: NSObject, ObservableObject {
 
     /// Starts a new match: requests authorization, opens a workout session and
     /// begins collecting live data.
-    func start() async {
+    func start(mode: String = "quick") async {
         guard phase == .idle else { return }
+        self.mode = mode
         guard HKHealthStore.isHealthDataAvailable() else {
             errorMessage = "Health data is not available on this device."
             return
@@ -84,6 +93,24 @@ final class WorkoutManager: NSObject, ObservableObject {
     }
 
     func resume() {
+        session?.resume()
+        phase = .running
+    }
+
+    /// Structured match: pause at half-time.
+    func markHalftime() {
+        guard mode == "structured", phase == .running else { return }
+        session?.pause()
+        phase = .paused
+        isHalftime = true
+    }
+
+    /// Structured match: resume into the second half, recording the boundary.
+    func startSecondHalf() {
+        guard mode == "structured", isHalftime else { return }
+        halftimeOffsetS = Int(elapsed)
+        currentHalf = 2
+        isHalftime = false
         session?.resume()
         phase = .running
     }
@@ -142,6 +169,9 @@ final class WorkoutManager: NSObject, ObservableObject {
         activeKcal = 0
         samples = []
         lastSampleAt = -sampleIntervalS
+        currentHalf = 1
+        halftimeOffsetS = nil
+        isHalftime = false
     }
 
     private func startTimer() {
@@ -158,7 +188,8 @@ final class WorkoutManager: NSObject, ObservableObject {
                     self.samples.append(WorkoutSummary.Sample(
                         tOffsetS: offset,
                         hr: self.heartRate > 0 ? Int(self.heartRate) : nil,
-                        speedKmh: nil
+                        speedKmh: nil,
+                        half: self.mode == "structured" ? self.currentHalf : nil
                     ))
                 }
             }
@@ -205,6 +236,8 @@ final class WorkoutManager: NSObject, ObservableObject {
             intensity: hrAvg.map(intensity(fromAverageHR:)),
             caloriesKcal: kcal,
             source: "watch",
+            mode: mode,
+            halftimeOffsetS: halftimeOffsetS,
             samples: samples
         )
     }

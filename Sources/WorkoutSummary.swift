@@ -9,6 +9,8 @@ struct WorkoutSummary: Equatable {
         var tOffsetS: Int
         var hr: Int?
         var speedKmh: Double?
+        /// 1 or 2 for structured matches; nil otherwise.
+        var half: Int?
     }
 
     var startedAt: Date
@@ -22,6 +24,8 @@ struct WorkoutSummary: Equatable {
     var intensity: Double?
     var caloriesKcal: Double?
     var source: String
+    var mode: String
+    var halftimeOffsetS: Int?
     var samples: [Sample]
 
     /// Serializes the summary into a WatchConnectivity `userInfo` dictionary
@@ -35,17 +39,20 @@ struct WorkoutSummary: Equatable {
             "distance_m": distanceM,
             "sprints": sprints,
             "source": source,
+            "mode": mode,
         ]
         if let hrAvg { dict["hr_avg"] = hrAvg }
         if let hrMax { dict["hr_max"] = hrMax }
         if let speedMaxKmh { dict["speed_max_kmh"] = speedMaxKmh }
         if let intensity { dict["intensity"] = intensity }
         if let caloriesKcal { dict["calories_kcal"] = caloriesKcal }
+        if let halftimeOffsetS { dict["halftime_offset_s"] = halftimeOffsetS }
         if !samples.isEmpty {
             dict["samples"] = samples.map { sample -> [String: Any] in
                 var point: [String: Any] = ["t_offset_s": sample.tOffsetS]
                 if let hr = sample.hr { point["hr"] = hr }
                 if let speed = sample.speedKmh { point["speed_kmh"] = speed }
+                if let half = sample.half { point["half"] = half }
                 return point
             }
         }
