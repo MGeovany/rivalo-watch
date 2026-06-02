@@ -18,6 +18,7 @@ final class PhoneSync: NSObject, WCSessionDelegate, @unchecked Sendable {
         static let methodKey = "method"
         static let startMatch = "startMatch"
         static let measureCourt = "measureCourt"
+        static let savePitch = "savePitch"
         static let liveEvent = "liveMatchEvent"
         static let matchPause = "matchPause"
         static let matchResume = "matchResume"
@@ -79,6 +80,32 @@ final class PhoneSync: NSObject, WCSessionDelegate, @unchecked Sendable {
     func send(_ summary: WorkoutSummary) {
         guard WCSession.isSupported() else { return }
         WCSession.default.transferUserInfo(summary.asUserInfo())
+    }
+
+    /// Sends a measured court to the iPhone for `POST /v1/pitches`.
+    func sendPitchToPhone(
+        name: String,
+        lengthM: Double,
+        widthM: Double,
+        latitude: Double?,
+        longitude: Double?,
+        measurementMethod: String,
+        matchType: String?,
+        surface: String?
+    ) {
+        guard WCSession.isSupported() else { return }
+        var payload: [String: Any] = [
+            Command.actionKey: Command.savePitch,
+            "name": name,
+            "length_m": lengthM,
+            "width_m": widthM,
+            "measurement_method": measurementMethod,
+        ]
+        if let latitude { payload["latitude"] = latitude }
+        if let longitude { payload["longitude"] = longitude }
+        if let matchType { payload["type"] = matchType }
+        if let surface { payload["surface"] = surface }
+        WCSession.default.transferUserInfo(payload)
     }
 
     // MARK: WCSessionDelegate

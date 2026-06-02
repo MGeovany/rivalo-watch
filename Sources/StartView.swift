@@ -17,7 +17,10 @@ struct StartView: View {
         NavigationStack {
             startScroll
                 .navigationDestination(isPresented: $showMeasureCourt) {
-                    MeasureCourtView()
+                    MeasureCourtView(
+                        matchType: selectedFormat.rawValue,
+                        surface: selectedSurface.rawValue
+                    )
                 }
         }
     }
@@ -33,7 +36,7 @@ struct StartView: View {
                 }
 
                 startButton
-                measureCourtButton
+                courtMeasureArea
 
                 modeSection
                 formatSection
@@ -76,6 +79,54 @@ struct StartView: View {
         }
         .buttonStyle(.plain)
         .padding(.bottom, 4)
+    }
+
+    @ViewBuilder
+    private var courtMeasureArea: some View {
+        if let court = displayCourt, court.hasDimensions {
+            courtDimensionsCard(court)
+        } else {
+            measureCourtButton
+        }
+    }
+
+    private var displayCourt: SavedCourt? {
+        if let id = selectedCourtId {
+            return courts.nearbyCourts.first { $0.id == id }
+        }
+        return courts.nearbyCourts.first { court in
+            court.hasDimensions && (court.distanceM ?? .infinity) < 200
+        }
+    }
+
+    private func courtDimensionsCard(_ court: SavedCourt) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(court.name)
+                .font(Theme.Typography.body(size: 14))
+                .foregroundStyle(Theme.Colors.textPrimary)
+                .lineLimit(1)
+            if let dimensions = court.dimensionsText {
+                Text(dimensions)
+                    .font(Theme.Typography.metric(size: 22))
+                    .foregroundStyle(Theme.Colors.accent)
+            }
+            if let meters = court.distanceM, meters < 200 {
+                Text(String(format: "%.0f m away", meters))
+                    .font(Theme.Typography.caption(size: 10))
+                    .foregroundStyle(Theme.Colors.textSecondary)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(10)
+        .background(Theme.Colors.surface)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .overlay {
+            RoundedRectangle(cornerRadius: 12)
+                .strokeBorder(Theme.Colors.accent.opacity(0.35), lineWidth: 1)
+        }
+        .onTapGesture {
+            selectedCourtId = court.id
+        }
     }
 
     private var measureCourtButton: some View {
@@ -178,8 +229,8 @@ struct StartView: View {
     }
 
     private func courtSubtitle(_ court: SavedCourt) -> String? {
-        if let length = court.lengthM, let width = court.widthM, length > 0, width > 0 {
-            return String(format: "%.0f × %.0f m", length, width)
+        if let dimensions = court.dimensionsText {
+            return dimensions
         }
         if let meters = court.distanceM {
             if meters < 200 {

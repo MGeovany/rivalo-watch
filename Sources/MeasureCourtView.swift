@@ -2,6 +2,9 @@ import SwiftUI
 
 /// V2-F: choose how to measure a court (walk on-watch, manual on iPhone).
 struct MeasureCourtView: View {
+    var matchType: String?
+    var surface: String?
+
     @State private var walkMeasureActive = false
     @State private var phoneStatus: String?
 
@@ -34,7 +37,7 @@ struct MeasureCourtView: View {
         .navigationTitle("Measure court")
         .navigationBarTitleDisplayMode(.inline)
         .navigationDestination(isPresented: $walkMeasureActive) {
-            WalkPitchMeasureView()
+            WalkPitchMeasureView(matchType: matchType, surface: surface)
         }
     }
 

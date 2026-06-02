@@ -5,6 +5,8 @@ struct WalkPitchMeasureView: View {
     @Environment(\.dismiss) private var dismiss
     @StateObject private var measure = PitchWalkMeasureService()
     @State private var courtName = ""
+    var matchType: String?
+    var surface: String?
 
     var body: some View {
         ScrollView {
@@ -68,12 +70,14 @@ struct WalkPitchMeasureView: View {
 
             primaryButton("Save court") {
                 let name = courtName.trimmingCharacters(in: .whitespacesAndNewlines)
-                CourtStore.shared.saveMeasuredCourt(
+                _ = CourtStore.shared.saveMeasuredCourt(
                     name: name.isEmpty ? "My court" : name,
                     lengthM: lengthM,
                     widthM: widthM,
                     latitude: CourtLocationService.sharedLastLatitude,
-                    longitude: CourtLocationService.sharedLastLongitude
+                    longitude: CourtLocationService.sharedLastLongitude,
+                    matchType: matchType,
+                    surface: surface
                 )
                 dismiss()
             }

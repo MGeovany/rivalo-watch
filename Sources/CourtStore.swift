@@ -41,13 +41,17 @@ final class CourtStore: ObservableObject {
             }
     }
 
+    @discardableResult
     func saveMeasuredCourt(
         name: String,
         lengthM: Double,
         widthM: Double,
         latitude: Double?,
-        longitude: Double?
-    ) {
+        longitude: Double?,
+        measurementMethod: String = PitchMeasurementMethod.walk.rawValue,
+        matchType: String? = nil,
+        surface: String? = nil
+    ) -> String {
         let id = UUID().uuidString
         let lat = latitude ?? courts.first?.latitude ?? 14.0723
         let lon = longitude ?? courts.first?.longitude ?? -87.1921
@@ -60,10 +64,21 @@ final class CourtStore: ObservableObject {
             playCount: 0,
             lengthM: lengthM,
             widthM: widthM,
-            measurementMethod: PitchMeasurementMethod.walk.rawValue
+            measurementMethod: measurementMethod
         ))
         persist()
         refreshNearby(latitude: latitude, longitude: longitude)
+        PhoneSync.shared.sendPitchToPhone(
+            name: name,
+            lengthM: lengthM,
+            widthM: widthM,
+            latitude: lat,
+            longitude: lon,
+            measurementMethod: measurementMethod,
+            matchType: matchType,
+            surface: surface
+        )
+        return id
     }
 
     func recordVisit(pitchId: String, at latitude: Double?, longitude: Double?) {
@@ -120,6 +135,15 @@ final class CourtStore: ObservableObject {
                     widthM: widthM,
                     measurementMethod: method
                 ))
+            }
+
+            if lengthM != nil, widthM != nil {
+                courts.removeAll { local in
+                    local.id != id
+                        && local.hasDimensions
+                        && local.name == name
+                        && local.distance(from: lat, longitude: lon) < 40
+                }
             }
         }
         persist()

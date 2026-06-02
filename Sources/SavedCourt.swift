@@ -14,6 +14,16 @@ struct SavedCourt: Equatable, Codable, Identifiable {
 
     var distanceM: Double?
 
+    var hasDimensions: Bool {
+        guard let lengthM, let widthM else { return false }
+        return lengthM > 0 && widthM > 0
+    }
+
+    var dimensionsText: String? {
+        guard hasDimensions, let lengthM, let widthM else { return nil }
+        return String(format: "%.0f × %.0f m", lengthM, widthM)
+    }
+
     func distance(from latitude: Double, longitude: Double) -> Double {
         let earthRadius = 6_371_000.0
         let lat1 = latitude * .pi / 180
