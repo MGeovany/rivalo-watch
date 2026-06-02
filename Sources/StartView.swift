@@ -9,10 +9,7 @@ struct StartView: View {
             Spacer(minLength: Theme.Spacing.medium)
 
             VStack(spacing: Theme.Spacing.small) {
-                Image("Isotipo")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(height: 36)
+                BrandLogo(style: .isotipo, height: 36)
                     .frame(maxWidth: .infinity)
 
                 Text(manager.errorMessage ?? "Ready to play")

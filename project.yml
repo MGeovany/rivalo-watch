@@ -29,6 +29,10 @@ targets:
           - Rajdhani-Bold.ttf
           - SpaceMono-Regular.ttf
           - SpaceMono-Bold.ttf
+        UILaunchScreen:
+          UIColorName: LaunchBackground
+          UIImageName: Isotipo
+          UIImageRespectsSafeAreaInsets: true
         NSHealthShareUsageDescription: Rivalo reads your heart rate, distance and energy during a match to build your performance summary.
         NSHealthUpdateUsageDescription: Rivalo saves each match as a workout in the Health app.
         WKBackgroundModes:
