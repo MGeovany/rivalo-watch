@@ -29,6 +29,14 @@ targets:
           - Rajdhani-Bold.ttf
           - SpaceMono-Regular.ttf
           - SpaceMono-Bold.ttf
+        NSHealthShareUsageDescription: Rivalo reads your heart rate, distance and energy during a match to build your performance summary.
+        NSHealthUpdateUsageDescription: Rivalo saves each match as a workout in the Health app.
+        WKBackgroundModes:
+          - workout-processing
+    entitlements:
+      path: Sources/RivaloWatch.entitlements
+      properties:
+        com.apple.developer.healthkit: true
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.mgeovany.rivalo.watchkitapp

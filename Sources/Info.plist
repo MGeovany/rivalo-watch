@@ -18,6 +18,10 @@
 	<string>1.0</string>
 	<key>CFBundleVersion</key>
 	<string>1</string>
+	<key>NSHealthShareUsageDescription</key>
+	<string>Rivalo reads your heart rate, distance and energy during a match to build your performance summary.</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>Rivalo saves each match as a workout in the Health app.</string>
 	<key>UIAppFonts</key>
 	<array>
 		<string>Michroma-Regular.ttf</string>
@@ -27,6 +31,10 @@
 		<string>Rajdhani-Bold.ttf</string>
 		<string>SpaceMono-Regular.ttf</string>
 		<string>SpaceMono-Bold.ttf</string>
+	</array>
+	<key>WKBackgroundModes</key>
+	<array>
+		<string>workout-processing</string>
 	</array>
 </dict>
 </plist>
