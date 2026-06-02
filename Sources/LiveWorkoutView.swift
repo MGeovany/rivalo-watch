@@ -34,17 +34,15 @@ struct LiveWorkoutView: View {
     }
 
     private var activePlayView: some View {
-        VStack(spacing: 4) {
-            ScrollView(.vertical, showsIndicators: false) {
-                VStack(spacing: isCompactLayout ? 4 : Theme.Spacing.small) {
-                    scrollableContent
-                }
-                .padding(.horizontal, Theme.Spacing.medium)
-                .padding(.top, 4)
-                .padding(.bottom, 2)
-                .frame(maxWidth: .infinity)
+        VStack(spacing: 0) {
+            VStack(spacing: isCompactLayout ? 4 : 6) {
+                scrollableContent
             }
-            .frame(maxHeight: .infinity)
+            .padding(.horizontal, Theme.Spacing.medium)
+            .padding(.top, 2)
+            .frame(maxWidth: .infinity, alignment: .top)
+
+            Spacer(minLength: 12)
 
             liveControls
                 .padding(.horizontal, Theme.Spacing.medium)
@@ -64,7 +62,7 @@ struct LiveWorkoutView: View {
         segmentHeader
 
         Text(clockText)
-            .font(Theme.Typography.metric(size: isCompactLayout ? 26 : (manager.isHalftime ? 28 : 30)))
+            .font(Theme.Typography.metric(size: isCompactLayout ? 26 : 28))
             .foregroundStyle(Theme.Colors.accent)
             .monospacedDigit()
             .minimumScaleFactor(0.75)
@@ -74,6 +72,7 @@ struct LiveWorkoutView: View {
             metric(value: heartRateText, label: "BPM", compact: isCompactLayout)
             metric(value: distanceText, label: "KM", compact: isCompactLayout)
         }
+        .padding(.bottom, 4)
     }
 
     @ViewBuilder
@@ -165,7 +164,7 @@ struct LiveWorkoutView: View {
     }
 
     private func metric(value: String, label: String, compact: Bool) -> some View {
-        VStack(spacing: 1) {
+        VStack(spacing: 2) {
             Text(value)
                 .font(Theme.Typography.metric(size: compact ? 17 : 19))
             Text(label)
@@ -173,6 +172,7 @@ struct LiveWorkoutView: View {
                 .foregroundStyle(Theme.Colors.textSecondary)
         }
         .frame(maxWidth: .infinity)
+        .padding(.vertical, 2)
     }
 
     private var clockText: String {
