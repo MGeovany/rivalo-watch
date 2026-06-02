@@ -25,8 +25,9 @@ final class WorkoutManager: NSObject, ObservableObject {
     @Published var mode: String = "quick"
     /// True while paused at half-time of a structured match.
     @Published var isHalftime: Bool = false
+    /// Current half (1 or 2) for structured matches.
+    @Published private(set) var currentHalf = 1
 
-    private var currentHalf = 1
     private var halftimeOffsetS: Int?
 
     private let healthStore = HKHealthStore()

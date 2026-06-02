@@ -6,6 +6,16 @@ struct LiveWorkoutView: View {
 
     var body: some View {
         VStack(spacing: Theme.Spacing.small) {
+            if manager.isHalftime {
+                Text("HALF-TIME")
+                    .font(Theme.Typography.statLabel(size: 12))
+                    .foregroundStyle(Theme.Colors.accent)
+            } else if manager.mode == "structured" {
+                Text(manager.currentHalf == 1 ? "1ST HALF" : "2ND HALF")
+                    .font(Theme.Typography.statLabel(size: 11))
+                    .foregroundStyle(Theme.Colors.textSecondary)
+            }
+
             Text(elapsedText)
                 .font(Theme.Typography.metric(size: 34))
                 .foregroundStyle(Theme.Colors.accent)
@@ -17,6 +27,19 @@ struct LiveWorkoutView: View {
             }
 
             Spacer(minLength: Theme.Spacing.small)
+
+            // Structured match: half-time / second-half controls.
+            if manager.mode == "structured" {
+                if manager.isHalftime {
+                    structuredButton("Start 2nd half", filled: true) {
+                        manager.startSecondHalf()
+                    }
+                } else if manager.currentHalf == 1 {
+                    structuredButton("Half-time", filled: false) {
+                        manager.markHalftime()
+                    }
+                }
+            }
 
             HStack(spacing: Theme.Spacing.small) {
                 Button {
@@ -46,6 +69,19 @@ struct LiveWorkoutView: View {
         }
         .padding(.horizontal, Theme.Spacing.medium)
         .padding(.vertical, Theme.Spacing.small)
+    }
+
+    private func structuredButton(_ title: String, filled: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(Theme.Typography.button(size: 14))
+                .foregroundStyle(filled ? Color.black : Theme.Colors.accent)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 8)
+        }
+        .buttonStyle(.plain)
+        .background(filled ? Theme.Colors.accent : Theme.Colors.surface)
+        .clipShape(Capsule())
     }
 
     private func metric(value: String, label: String) -> some View {
