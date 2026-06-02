@@ -13,7 +13,7 @@ struct WorkoutSummary: Equatable {
         var half: Int?
     }
 
-    /// One GPS point on the match trajectory (V2 session_path).
+    /// One GPS point on the match trajectory (session_path).
     struct PathPoint: Equatable {
         var tOffsetS: Int
         var latitude: Double

@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// V2-F: choose how to measure a court (walk or manual on Apple Watch).
+/// choose how to measure a court (walk or manual on Apple Watch).
 struct MeasureCourtView: View {
     var matchType: String?
     var surface: String?
