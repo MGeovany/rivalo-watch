@@ -168,7 +168,7 @@ final class CourtStore: ObservableObject {
         courts = [
             SavedCourt(
                 id: "demo-court-1",
-                name: "Cancha Los Proceres",
+                name: "Los Proceres Pitch",
                 latitude: 14.0723,
                 longitude: -87.1921,
                 lastPlayedAt: Date().addingTimeInterval(-86400 * 7),
@@ -176,7 +176,7 @@ final class CourtStore: ObservableObject {
             ),
             SavedCourt(
                 id: "demo-court-2",
-                name: "Complejo Fútbol 11",
+                name: "11-a-side Complex",
                 latitude: 14.0788,
                 longitude: -87.1855,
                 lastPlayedAt: Date().addingTimeInterval(-86400 * 14),

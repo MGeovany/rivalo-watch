@@ -10,61 +10,80 @@ struct LiveWorkoutView: View {
     }
 
     var body: some View {
-        VStack(spacing: isCompactLayout ? 4 : Theme.Spacing.small) {
-            if let error = manager.errorMessage {
-                Text(error)
-                    .font(Theme.Typography.caption(size: 9))
-                    .multilineTextAlignment(.center)
-                    .foregroundStyle(Theme.Colors.accent)
-            }
-
-            segmentHeader
-
-            Text(clockText)
-                .font(Theme.Typography.metric(size: isCompactLayout ? 26 : (manager.isHalftime ? 28 : 30)))
-                .foregroundStyle(Theme.Colors.accent)
-                .monospacedDigit()
-                .minimumScaleFactor(0.75)
-                .lineLimit(1)
-
-            if manager.isHalftime {
-                Text("Juego pausado")
-                    .font(Theme.Typography.caption(size: 9))
-                    .foregroundStyle(Theme.Colors.textSecondary)
-            }
-
-            if manager.isHalftime, let half = manager.firstHalfStats {
-                halftimeMetrics(half)
+        Group {
+            if manager.isHalftime, let snapshot = manager.halftimeSnapshot {
+                HalftimeView(manager: manager, snapshot: snapshot)
             } else {
-                HStack(spacing: Theme.Spacing.medium) {
-                    metric(value: heartRateText, label: "BPM", compact: isCompactLayout)
-                    metric(value: distanceText, label: "KM", compact: isCompactLayout)
-                }
-            }
-
-            if manager.usesHalfFlow {
-                halfFlowControls
-            } else {
-                matchButton("Finalizar", style: .primary, compact: false) {
-                    Task { await manager.end() }
-                }
+                activePlayView
             }
         }
-        .padding(.horizontal, Theme.Spacing.medium)
-        .padding(.vertical, 6)
         .confirmationDialog(
-            "¿Reiniciar 1.er tiempo?",
+            "Restart 1st half?",
             isPresented: $showRestartConfirm,
             titleVisibility: .visible
         ) {
-            Button("Reiniciar", role: .destructive) {
+            Button("Restart", role: .destructive) {
                 manager.restartFirstHalf()
             }
-            Button("Cancelar", role: .cancel) {}
+            Button("Cancel", role: .cancel) {}
         } message: {
             Text(
-                "No podrás reanudar el 2.º tiempo. Se perderán las métricas del segundo tiempo."
+                "You cannot resume the 2nd half. Second-half metrics will be lost."
             )
+        }
+    }
+
+    private var activePlayView: some View {
+        VStack(spacing: 4) {
+            ScrollView(.vertical, showsIndicators: false) {
+                VStack(spacing: isCompactLayout ? 4 : Theme.Spacing.small) {
+                    scrollableContent
+                }
+                .padding(.horizontal, Theme.Spacing.medium)
+                .padding(.top, 4)
+                .padding(.bottom, 2)
+                .frame(maxWidth: .infinity)
+            }
+            .frame(maxHeight: .infinity)
+
+            liveControls
+                .padding(.horizontal, Theme.Spacing.medium)
+                .padding(.bottom, 6)
+        }
+    }
+
+    @ViewBuilder
+    private var scrollableContent: some View {
+        if let error = manager.errorMessage {
+            Text(error)
+                .font(Theme.Typography.caption(size: 9))
+                .multilineTextAlignment(.center)
+                .foregroundStyle(Theme.Colors.accent)
+        }
+
+        segmentHeader
+
+        Text(clockText)
+            .font(Theme.Typography.metric(size: isCompactLayout ? 26 : (manager.isHalftime ? 28 : 30)))
+            .foregroundStyle(Theme.Colors.accent)
+            .monospacedDigit()
+            .minimumScaleFactor(0.75)
+            .lineLimit(1)
+
+        HStack(spacing: Theme.Spacing.medium) {
+            metric(value: heartRateText, label: "BPM", compact: isCompactLayout)
+            metric(value: distanceText, label: "KM", compact: isCompactLayout)
+        }
+    }
+
+    @ViewBuilder
+    private var liveControls: some View {
+        if manager.usesHalfFlow {
+            halfFlowControls
+        } else {
+            matchButton("Finish", style: .primary, compact: false) {
+                Task { await manager.end() }
+            }
         }
     }
 
@@ -75,15 +94,13 @@ struct LiveWorkoutView: View {
         if manager.usesHalfFlow {
             switch manager.matchSegment {
             case .firstHalf:
-                Text("1.er TIEMPO")
+                Text("1ST HALF")
                     .font(Theme.Typography.statLabel(size: 10))
                     .foregroundStyle(Theme.Colors.textSecondary)
             case .halftimeBreak:
-                Text("DESCANSO")
-                    .font(Theme.Typography.statLabel(size: 11))
-                    .foregroundStyle(Theme.Colors.accent)
+                EmptyView()
             case .secondHalf:
-                Text("2.º TIEMPO")
+                Text("2ND HALF")
                     .font(Theme.Typography.statLabel(size: 10))
                     .foregroundStyle(Theme.Colors.textSecondary)
             }
@@ -96,28 +113,25 @@ struct LiveWorkoutView: View {
     private var halfFlowControls: some View {
         switch manager.matchSegment {
         case .firstHalf:
-            matchButton("Fin 1.er tiempo", style: .primary, compact: false) {
+            matchButton("End 1st half", style: .primary, compact: false) {
                 manager.finishFirstHalf()
             }
-            .accessibilityLabel("Finalizar primer tiempo")
+            .accessibilityLabel("End first half")
 
         case .halftimeBreak:
-            matchButton("2.º tiempo", style: .primary, compact: false) {
-                manager.startSecondHalf()
-            }
-            .accessibilityLabel("Iniciar segundo tiempo")
+            EmptyView()
 
         case .secondHalf:
             HStack(spacing: 5) {
-                matchButton("Finalizar", style: .primary, compact: true) {
+                matchButton("Finish", style: .primary, compact: true) {
                     Task { await manager.end() }
                 }
-                .accessibilityLabel("Finalizar partido")
+                .accessibilityLabel("Finish match")
 
-                matchButton("Reiniciar", style: .secondary, compact: true) {
+                matchButton("Restart", style: .secondary, compact: true) {
                     showRestartConfirm = true
                 }
-                .accessibilityLabel("Reiniciar primer tiempo")
+                .accessibilityLabel("Restart first half")
             }
         }
     }
@@ -159,46 +173,6 @@ struct LiveWorkoutView: View {
                 .foregroundStyle(Theme.Colors.textSecondary)
         }
         .frame(maxWidth: .infinity)
-    }
-
-    private func halftimeMetrics(_ half: FirstHalfStats) -> some View {
-        VStack(spacing: 3) {
-            Text("1.er tiempo")
-                .font(Theme.Typography.statLabel(size: 9))
-                .foregroundStyle(Theme.Colors.textSecondary)
-
-            HStack(spacing: 4) {
-                metric(value: formatDuration(half.durationS), label: "TIEMPO", compact: true)
-                metric(value: formatDistanceKm(half.distanceM), label: "KM", compact: true)
-            }
-            HStack(spacing: 4) {
-                metric(
-                    value: half.averageHeartRate.map { "\($0)" } ?? "--",
-                    label: "MEDIA",
-                    compact: true
-                )
-                metric(value: "\(half.activeKcal)", label: "KCAL", compact: true)
-            }
-
-            HStack(spacing: 4) {
-                Text("Ahora")
-                    .font(Theme.Typography.statLabel(size: 9))
-                    .foregroundStyle(Theme.Colors.textSecondary)
-                Text(heartRateText)
-                    .font(Theme.Typography.metric(size: 15))
-                Text("BPM")
-                    .font(Theme.Typography.statLabel(size: 9))
-                    .foregroundStyle(Theme.Colors.textSecondary)
-            }
-        }
-    }
-
-    private func formatDuration(_ seconds: Int) -> String {
-        String(format: "%d:%02d", seconds / 60, seconds % 60)
-    }
-
-    private func formatDistanceKm(_ meters: Double) -> String {
-        String(format: "%.2f", meters / 1000)
     }
 
     private var clockText: String {

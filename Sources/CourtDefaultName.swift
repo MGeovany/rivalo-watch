@@ -3,7 +3,7 @@ import Foundation
 /// Default court label from date/time until the user renames it on iPhone.
 enum CourtDefaultName {
     static func make(date: Date = Date()) -> String {
-        let locale = Locale.current
+        let locale = Locale(identifier: "en_US")
         let weekday = DateFormatter()
         weekday.locale = locale
         weekday.setLocalizedDateFormatFromTemplate("EEE")

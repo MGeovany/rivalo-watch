@@ -62,10 +62,12 @@ final class PhoneSync: NSObject, WCSessionDelegate, @unchecked Sendable {
         }
     }
 
+    /// Pushes live match state to iPhone. Uses application context (no delivery errors when phone is locked).
     func sendLiveEvent(mode: String, elapsedS: Int, heartRate: Int, distanceM: Double, segment: String) {
         guard WCSession.isSupported() else { return }
         let session = WCSession.default
-        guard session.isReachable else { return }
+        guard session.activationState == .activated else { return }
+
         let payload: [String: Any] = [
             Command.actionKey: Command.liveEvent,
             "mode": mode,
@@ -74,7 +76,16 @@ final class PhoneSync: NSObject, WCSessionDelegate, @unchecked Sendable {
             "distance_m": distanceM,
             "segment": segment,
         ]
-        session.sendMessage(payload, replyHandler: nil) { _ in }
+
+        do {
+            var context = session.applicationContext
+            for (key, value) in payload {
+                context[key] = value
+            }
+            try session.updateApplicationContext(context)
+        } catch {
+            // Throttled or unchanged context — safe to ignore.
+        }
     }
 
     func send(_ summary: WorkoutSummary) {
@@ -136,6 +147,13 @@ final class PhoneSync: NSObject, WCSessionDelegate, @unchecked Sendable {
                     return
                 }
                 CourtStore.shared.mergeFromPhone(decoded)
+            }
+        }
+        if let userAverages = applicationContext["user_averages"] as? [String: Any],
+           let data = try? JSONSerialization.data(withJSONObject: userAverages),
+           let copy = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+            DispatchQueue.main.async {
+                UserMatchAveragesStore.shared.applyPhonePayload(copy)
             }
         }
         if isStartMatch(applicationContext) {

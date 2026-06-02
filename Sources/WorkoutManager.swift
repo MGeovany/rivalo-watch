@@ -11,13 +11,6 @@ enum MatchSegment: Equatable {
     case secondHalf
 }
 
-/// Snapshot of the first half shown during the break.
-struct FirstHalfStats: Equatable {
-    let durationS: Int
-    let distanceM: Double
-    let averageHeartRate: Int?
-    let activeKcal: Int
-}
 
 @MainActor
 final class WorkoutManager: NSObject, ObservableObject {
@@ -47,7 +40,7 @@ final class WorkoutManager: NSObject, ObservableObject {
     /// Elapsed break time while in `.halftimeBreak`.
     @Published var breakElapsed: TimeInterval = 0
     /// Metrics frozen when the first half ended (shown during break).
-    @Published private(set) var firstHalfStats: FirstHalfStats?
+    @Published private(set) var halftimeSnapshot: HalftimeSnapshot?
 
     /// Current half (1 or 2) for half-based modes.
     @Published private(set) var currentHalf = 1
@@ -72,8 +65,10 @@ final class WorkoutManager: NSObject, ObservableObject {
     private let sampleIntervalS = 10
     private var samples: [WorkoutSummary.Sample] = []
     private var lastSampleAt = -10
+    private var lastSampleDistanceM: Double = 0
 
     private let hrUnit = HKUnit.count().unitDivided(by: .minute())
+    private let speedUnit = HKUnit.meter().unitDivided(by: .second())
 
     override init() {
         super.init()
@@ -169,6 +164,7 @@ final class WorkoutManager: NSObject, ObservableObject {
             session.startActivity(with: start)
 
             resetMetrics()
+            lastSampleDistanceM = 0
             tickElapsed()
             phase = .running
             startTimer()
@@ -196,11 +192,12 @@ final class WorkoutManager: NSObject, ObservableObject {
     /// Ends the first half and starts the break clock.
     func finishFirstHalf() {
         guard usesHalfFlow, matchSegment == .firstHalf, phase == .running else { return }
-        firstHalfStats = FirstHalfStats(
-            durationS: Int(elapsed),
+        let durationS = Int(elapsed)
+        halftimeSnapshot = HalftimeAnalytics.snapshot(
+            samples: samples,
             distanceM: distanceM,
-            averageHeartRate: averageHeartRate(from: samples),
-            activeKcal: Int(activeKcal.rounded())
+            durationS: durationS,
+            currentHeartRate: heartRate
         )
         session?.pause()
         phase = .paused
@@ -286,6 +283,7 @@ final class WorkoutManager: NSObject, ObservableObject {
 
         let result = makeSummary(start: startDate, end: end, builder: builder)
         summary = result
+        UserMatchAveragesStore.shared.recordFinishedMatch(result)
         PhoneSync.shared.send(result)
         phase = .ended
         self.session = nil
@@ -369,15 +367,8 @@ final class WorkoutManager: NSObject, ObservableObject {
         breakElapsed = 0
         breakStartedAt = nil
         breakTimerTask?.cancel()
-        firstHalfStats = nil
-    }
-
-    private func averageHeartRate(from samples: [WorkoutSummary.Sample]) -> Int? {
-        let values = samples.compactMap(\.hr)
-        if !values.isEmpty {
-            return values.reduce(0, +) / values.count
-        }
-        return heartRate > 0 ? Int(heartRate) : nil
+        halftimeSnapshot = nil
+        lastSampleDistanceM = 0
     }
 
     private func startBreakTimer() {
@@ -417,12 +408,14 @@ final class WorkoutManager: NSObject, ObservableObject {
                 }
                 if offset - self.lastSampleAt >= self.sampleIntervalS {
                     self.lastSampleAt = offset
+                    let speedKmh = self.estimateSpeedKmh(at: offset)
                     self.samples.append(WorkoutSummary.Sample(
                         tOffsetS: offset,
                         hr: self.heartRate > 0 ? Int(self.heartRate) : nil,
-                        speedKmh: nil,
+                        speedKmh: speedKmh,
                         half: self.usesHalfFlow ? self.currentHalf : nil
                     ))
+                    self.lastSampleDistanceM = self.distanceM
                 }
 
                 // Send live event to iPhone every 5 seconds.
@@ -444,6 +437,19 @@ final class WorkoutManager: NSObject, ObservableObject {
                 }
             }
         }
+    }
+
+    private func estimateSpeedKmh(at offsetS: Int) -> Double? {
+        if let stats = builder?.statistics(for: HKQuantityType(.runningSpeed)),
+           let value = stats.mostRecentQuantity()?.doubleValue(for: speedUnit) {
+            return value * 3.6
+        }
+        let priorOffset = samples.last?.tOffsetS ?? 0
+        let deltaS = offsetS - priorOffset
+        guard deltaS > 0 else { return nil }
+        let deltaM = distanceM - lastSampleDistanceM
+        guard deltaM > 0 else { return nil }
+        return (deltaM / Double(deltaS)) * 3.6
     }
 
     /// Re-reads the latest metrics from the builder after a data collection event.
@@ -472,16 +478,24 @@ final class WorkoutManager: NSObject, ObservableObject {
         let kcal = builder.statistics(for: HKQuantityType(.activeEnergyBurned))?
             .sumQuantity()?.doubleValue(for: .kilocalorie())
 
+        let durationS = Int(end.timeIntervalSince(start))
+        let snap = HalftimeAnalytics.snapshot(
+            samples: samples,
+            distanceM: distance,
+            durationS: durationS,
+            currentHeartRate: hrAvg ?? 0
+        )
+
         let summary = WorkoutSummary(
             startedAt: start,
             endedAt: end,
-            durationS: Int(end.timeIntervalSince(start)),
+            durationS: durationS,
             distanceM: distance,
             hrAvg: hrAvg.map { Int($0.rounded()) },
             hrMax: hrMax.map { Int($0.rounded()) },
-            speedMaxKmh: nil,
-            sprints: 0,
-            intensity: hrAvg.map(intensity(fromAverageHR:)),
+            speedMaxKmh: snap.topSpeedKmh,
+            sprints: snap.sprints,
+            intensity: snap.intensity.map(Double.init),
             caloriesKcal: kcal,
             source: "watch",
             mode: mode,
@@ -506,11 +520,6 @@ final class WorkoutManager: NSObject, ObservableObject {
         return summary
     }
 
-    /// Maps an average heart rate to a 0-100 effort score (simple MVP heuristic).
-    private func intensity(fromAverageHR avg: Double) -> Double {
-        let normalized = (avg - 60) / (190 - 60) * 100
-        return min(100, max(0, normalized))
-    }
 }
 
 // MARK: - HealthKit delegates
