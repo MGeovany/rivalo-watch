@@ -5,7 +5,8 @@ enum Theme {
     enum Colors {
         static let background = Color(red: 0.05, green: 0.06, blue: 0.07)
         static let surface = Color(red: 0.11, green: 0.12, blue: 0.14)
-        static let accent = Color(red: 0.0, green: 0.85, blue: 0.45)
+        /// Brand primary (#ff571b) — logo, buttons, and highlights.
+        static let accent = Color(red: 1.0, green: 87 / 255, blue: 27 / 255)
         static let textPrimary = Color.white
         static let textSecondary = Color(white: 0.65)
     }
