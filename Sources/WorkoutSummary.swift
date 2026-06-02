@@ -4,6 +4,13 @@ import Foundation
 /// payload the phone will send to the backend (source = "watch"). Sent to the
 /// iPhone via WatchConnectivity in a later phase.
 struct WorkoutSummary: Equatable {
+    /// One point in the match time series.
+    struct Sample: Equatable {
+        var tOffsetS: Int
+        var hr: Int?
+        var speedKmh: Double?
+    }
+
     var startedAt: Date
     var endedAt: Date
     var durationS: Int
@@ -15,6 +22,7 @@ struct WorkoutSummary: Equatable {
     var intensity: Double?
     var caloriesKcal: Double?
     var source: String
+    var samples: [Sample]
 
     /// Serializes the summary into a WatchConnectivity `userInfo` dictionary
     /// matching the backend session payload (snake_case keys, ISO8601 dates).
@@ -33,6 +41,14 @@ struct WorkoutSummary: Equatable {
         if let speedMaxKmh { dict["speed_max_kmh"] = speedMaxKmh }
         if let intensity { dict["intensity"] = intensity }
         if let caloriesKcal { dict["calories_kcal"] = caloriesKcal }
+        if !samples.isEmpty {
+            dict["samples"] = samples.map { sample -> [String: Any] in
+                var point: [String: Any] = ["t_offset_s": sample.tOffsetS]
+                if let hr = sample.hr { point["hr"] = hr }
+                if let speed = sample.speedKmh { point["speed_kmh"] = speed }
+                return point
+            }
+        }
         return dict
     }
 

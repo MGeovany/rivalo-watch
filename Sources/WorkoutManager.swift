@@ -27,6 +27,11 @@ final class WorkoutManager: NSObject, ObservableObject {
     private var startDate: Date?
     private var timerTask: Task<Void, Never>?
 
+    // Time series captured during the match (sampled every few seconds).
+    private let sampleIntervalS = 10
+    private var samples: [WorkoutSummary.Sample] = []
+    private var lastSampleAt = -10
+
     private let hrUnit = HKUnit.count().unitDivided(by: .minute())
 
     override init() {
@@ -134,6 +139,8 @@ final class WorkoutManager: NSObject, ObservableObject {
         heartRate = 0
         distanceM = 0
         activeKcal = 0
+        samples = []
+        lastSampleAt = -sampleIntervalS
     }
 
     private func startTimer() {
@@ -143,6 +150,16 @@ final class WorkoutManager: NSObject, ObservableObject {
                 try? await Task.sleep(for: .seconds(1))
                 guard let self, self.phase == .running else { continue }
                 self.elapsed = self.builder?.elapsedTime ?? self.startDate.map { Date().timeIntervalSince($0) } ?? 0
+
+                let offset = Int(self.elapsed)
+                if offset - self.lastSampleAt >= self.sampleIntervalS {
+                    self.lastSampleAt = offset
+                    self.samples.append(WorkoutSummary.Sample(
+                        tOffsetS: offset,
+                        hr: self.heartRate > 0 ? Int(self.heartRate) : nil,
+                        speedKmh: nil
+                    ))
+                }
             }
         }
     }
@@ -186,7 +203,8 @@ final class WorkoutManager: NSObject, ObservableObject {
             sprints: 0,
             intensity: hrAvg.map(intensity(fromAverageHR:)),
             caloriesKcal: kcal,
-            source: "watch"
+            source: "watch",
+            samples: samples
         )
     }
 
