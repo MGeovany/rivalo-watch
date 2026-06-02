@@ -13,6 +13,13 @@ struct WorkoutSummary: Equatable {
         var half: Int?
     }
 
+    /// One GPS point on the match trajectory (V2 session_path).
+    struct PathPoint: Equatable {
+        var tOffsetS: Int
+        var latitude: Double
+        var longitude: Double
+    }
+
     var startedAt: Date
     var endedAt: Date
     var durationS: Int
@@ -35,6 +42,8 @@ struct WorkoutSummary: Equatable {
     var pitchLongitude: Double?
     var halftimeOffsetS: Int?
     var samples: [Sample]
+    /// GPS trajectory captured during the match (empty when no location).
+    var path: [PathPoint] = []
 
     /// Serializes the summary into a WatchConnectivity `userInfo` dictionary
     /// matching the backend session payload (snake_case keys, ISO8601 dates).
@@ -69,6 +78,15 @@ struct WorkoutSummary: Equatable {
                 if let speed = sample.speedKmh { point["speed_kmh"] = speed }
                 if let half = sample.half { point["half"] = half }
                 return point
+            }
+        }
+        if !path.isEmpty {
+            dict["path"] = path.map { point -> [String: Any] in
+                [
+                    "t_offset_s": point.tOffsetS,
+                    "latitude": point.latitude,
+                    "longitude": point.longitude,
+                ]
             }
         }
         return dict

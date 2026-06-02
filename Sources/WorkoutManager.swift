@@ -60,6 +60,7 @@ final class WorkoutManager: NSObject, ObservableObject {
     private var builder: HKLiveWorkoutBuilder?
     private var startDate: Date?
     private var timerTask: Task<Void, Never>?
+    private let pathRecorder = MatchPathRecorder()
 
     // Time series captured during the match (sampled every few seconds).
     private let sampleIntervalS = 10
@@ -168,6 +169,7 @@ final class WorkoutManager: NSObject, ObservableObject {
             tickElapsed()
             phase = .running
             startTimer()
+            pathRecorder.start()
             WorkoutLog.info("phase=running clock=\(Int(elapsed))s (live)")
 
             // beginCollection often hangs on-device; never block the match clock on it.
@@ -281,7 +283,8 @@ final class WorkoutManager: NSObject, ObservableObject {
             WorkoutLog.error("end failed: \(error.localizedDescription)")
         }
 
-        let result = makeSummary(start: startDate, end: end, builder: builder)
+        let path = pathRecorder.stop(start: startDate)
+        let result = makeSummary(start: startDate, end: end, builder: builder, path: path)
         summary = result
         UserMatchAveragesStore.shared.recordFinishedMatch(result)
         PhoneSync.shared.send(result)
@@ -310,6 +313,7 @@ final class WorkoutManager: NSObject, ObservableObject {
         WorkoutLog.info("discarding stale workout session")
         timerTask?.cancel()
         breakTimerTask?.cancel()
+        pathRecorder.cancel()
         session?.end()
         session = nil
         builder = nil
@@ -469,7 +473,7 @@ final class WorkoutManager: NSObject, ObservableObject {
         }
     }
 
-    private func makeSummary(start: Date, end: Date, builder: HKLiveWorkoutBuilder) -> WorkoutSummary {
+    private func makeSummary(start: Date, end: Date, builder: HKLiveWorkoutBuilder, path: [WorkoutSummary.PathPoint]) -> WorkoutSummary {
         let hrStats = builder.statistics(for: HKQuantityType(.heartRate))
         let hrAvg = hrStats?.averageQuantity()?.doubleValue(for: hrUnit)
         let hrMax = hrStats?.maximumQuantity()?.doubleValue(for: hrUnit)
@@ -517,7 +521,8 @@ final class WorkoutManager: NSObject, ObservableObject {
             pitchLatitude: matchSetup.pitchLatitude,
             pitchLongitude: matchSetup.pitchLongitude,
             halftimeOffsetS: halftimeOffsetS,
-            samples: samples
+            samples: samples,
+            path: path
         )
 
         if let pitchId = matchSetup.pitchId {
