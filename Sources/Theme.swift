@@ -23,12 +23,12 @@ enum Theme {
         }
     }
     enum Colors {
-        static let background = Color(red: 0.05, green: 0.06, blue: 0.07)
-        static let surface = Color(red: 0.11, green: 0.12, blue: 0.14)
-        /// Brand primary (#ff571b) — logo, buttons, and highlights.
-        static let accent = Color(red: 1.0, green: 87 / 255, blue: 27 / 255)
-        static let textPrimary = Color.white
-        static let textSecondary = Color(white: 0.65)
+        static let background = Color(red: 4 / 255, green: 5 / 255, blue: 6 / 255)
+        static let surface = Color(red: 36 / 255, green: 37 / 255, blue: 38 / 255)
+        static let accent = Color(red: 1.0, green: 90 / 255, blue: 0)
+        static let accentBright = Color(red: 1.0, green: 157 / 255, blue: 0)
+        static let textPrimary = Color(red: 245 / 255, green: 245 / 255, blue: 245 / 255)
+        static let textSecondary = Color(red: 102 / 255, green: 102 / 255, blue: 102 / 255)
     }
 
     enum Typography {

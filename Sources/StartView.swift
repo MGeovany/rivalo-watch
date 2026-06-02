@@ -9,13 +9,11 @@ struct StartView: View {
             Spacer(minLength: Theme.Spacing.medium)
 
             VStack(spacing: Theme.Spacing.small) {
-                Text("RIVALO")
-                    .font(Theme.Typography.logo(size: 17))
-                    .tracking(2)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
+                Image("Isotipo")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(height: 36)
                     .frame(maxWidth: .infinity)
-                    .foregroundStyle(Theme.Colors.accent)
 
                 Text(manager.errorMessage ?? "Ready to play")
                     .font(Theme.Typography.body())
