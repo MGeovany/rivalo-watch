@@ -1,5 +1,5 @@
 import Foundation
-import HealthKit
+@preconcurrency import HealthKit
 
 /// Drives a match capture using a HealthKit workout session: start, live
 /// metrics (heart rate, distance, energy), pause/resume, and finish with
@@ -140,13 +140,19 @@ final class WorkoutManager: NSObject, ObservableObject {
             try await requestAuthorization()
             WorkoutLog.info("HealthKit authorized")
 
+            discardStaleWorkoutSession()
+
             let configuration = HKWorkoutConfiguration()
             configuration.activityType = .soccer
             configuration.locationType = .outdoor
 
+            WorkoutLog.info("creating HKWorkoutSession…")
             let session = try HKWorkoutSession(healthStore: healthStore, configuration: configuration)
             let builder = session.associatedWorkoutBuilder()
-            builder.dataSource = HKLiveWorkoutDataSource(healthStore: healthStore, workoutConfiguration: configuration)
+            builder.dataSource = HKLiveWorkoutDataSource(
+                healthStore: healthStore,
+                workoutConfiguration: configuration
+            )
             session.delegate = self
             builder.delegate = self
 
@@ -155,21 +161,25 @@ final class WorkoutManager: NSObject, ObservableObject {
             self.builder = builder
             self.startDate = start
 
+            WorkoutLog.info("session.prepare()")
+            session.prepare()
+            try await Task.sleep(for: .milliseconds(800))
+
+            WorkoutLog.info("session.startActivity()")
             session.startActivity(with: start)
-            try await builder.beginCollection(at: start)
-            WorkoutLog.info("workout session started at \(start.formatted())")
 
             resetMetrics()
             tickElapsed()
             phase = .running
             startTimer()
-            WorkoutLog.info("phase=running elapsed=\(Int(elapsed))s")
+            WorkoutLog.info("phase=running clock=\(Int(elapsed))s (live)")
+
+            // beginCollection often hangs on-device; never block the match clock on it.
+            startDataCollection(at: start, builder: builder)
         } catch {
             errorMessage = error.localizedDescription
             WorkoutLog.error("start failed: \(error.localizedDescription)")
-            session = nil
-            builder = nil
-            startDate = nil
+            discardStaleWorkoutSession()
         }
     }
 
@@ -250,27 +260,42 @@ final class WorkoutManager: NSObject, ObservableObject {
         guard let session, let builder, let startDate else { return }
         timerTask?.cancel()
         breakTimerTask?.cancel()
+        WorkoutLog.info("ending match…")
 
         let end = Date()
+        session.stopActivity(with: end)
         session.end()
         do {
-            try await builder.endCollection(at: end)
+            try await withThrowingTaskGroup(of: Void.self) { group in
+                group.addTask { try await builder.endCollection(at: end) }
+                group.addTask {
+                    try await Task.sleep(for: .seconds(10))
+                    throw CollectionTimeout()
+                }
+                _ = try await group.next()
+                group.cancelAll()
+            }
             _ = try? await builder.finishWorkout()
+            WorkoutLog.info("workout saved to Health")
+        } catch is CollectionTimeout {
+            WorkoutLog.error("endCollection timed out")
         } catch {
             errorMessage = error.localizedDescription
+            WorkoutLog.error("end failed: \(error.localizedDescription)")
         }
 
         let result = makeSummary(start: startDate, end: end, builder: builder)
         summary = result
         PhoneSync.shared.send(result)
         phase = .ended
+        self.session = nil
+        self.builder = nil
+        self.startDate = nil
     }
 
     /// Returns to the idle home screen, discarding the finished summary.
     func reset() {
-        session = nil
-        builder = nil
-        startDate = nil
+        discardStaleWorkoutSession()
         summary = nil
         errorMessage = nil
         resetMetrics()
@@ -278,6 +303,44 @@ final class WorkoutManager: NSObject, ObservableObject {
     }
 
     // MARK: - Internals
+
+    private struct CollectionTimeout: Error {}
+
+    /// Ends any leftover HealthKit session so `beginCollection` does not hang on the next start.
+    private func discardStaleWorkoutSession() {
+        guard session != nil || builder != nil else { return }
+        WorkoutLog.info("discarding stale workout session")
+        timerTask?.cancel()
+        breakTimerTask?.cancel()
+        session?.end()
+        session = nil
+        builder = nil
+        startDate = nil
+    }
+
+    /// Starts HK live metrics collection without blocking the UI clock.
+    private func startDataCollection(at start: Date, builder: HKLiveWorkoutBuilder) {
+        Task { @MainActor [weak self] in
+            WorkoutLog.info("beginCollection waiting…")
+            do {
+                try await withThrowingTaskGroup(of: Void.self) { group in
+                    group.addTask { try await builder.beginCollection(at: start) }
+                    group.addTask {
+                        try await Task.sleep(for: .seconds(15))
+                        throw CollectionTimeout()
+                    }
+                    _ = try await group.next()
+                    group.cancelAll()
+                }
+                WorkoutLog.info("beginCollection ok")
+                self?.tickElapsed()
+            } catch is CollectionTimeout {
+                WorkoutLog.error("beginCollection timed out after 15s — clock still runs; restart Watch if metrics stay at 0")
+            } catch {
+                WorkoutLog.error("beginCollection failed: \(error.localizedDescription)")
+            }
+        }
+    }
 
     private func requestAuthorization() async throws {
         let share: Set<HKSampleType> = [
