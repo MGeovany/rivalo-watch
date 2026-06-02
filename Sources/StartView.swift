@@ -61,7 +61,7 @@ struct StartView: View {
         Button {
             Task { await manager.start(setup: buildSetup()) }
         } label: {
-            Text("Start match")
+            Text(manager.isStarting ? "Starting…" : "Start match")
                 .font(Theme.Typography.button(size: 16))
                 .foregroundStyle(Color.black)
                 .frame(maxWidth: .infinity)
@@ -78,6 +78,7 @@ struct StartView: View {
                 )
         }
         .buttonStyle(.plain)
+        .disabled(manager.isStarting)
         .padding(.bottom, 4)
     }
 

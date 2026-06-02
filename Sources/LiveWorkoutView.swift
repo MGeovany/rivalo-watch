@@ -11,6 +11,13 @@ struct LiveWorkoutView: View {
 
     var body: some View {
         VStack(spacing: isCompactLayout ? 4 : Theme.Spacing.small) {
+            if let error = manager.errorMessage {
+                Text(error)
+                    .font(Theme.Typography.caption(size: 9))
+                    .multilineTextAlignment(.center)
+                    .foregroundStyle(Theme.Colors.accent)
+            }
+
             segmentHeader
 
             Text(clockText)
@@ -26,9 +33,13 @@ struct LiveWorkoutView: View {
                     .foregroundStyle(Theme.Colors.textSecondary)
             }
 
-            HStack(spacing: Theme.Spacing.medium) {
-                metric(value: heartRateText, label: "BPM", compact: isCompactLayout)
-                metric(value: distanceText, label: "KM", compact: isCompactLayout)
+            if manager.isHalftime, let half = manager.firstHalfStats {
+                halftimeMetrics(half)
+            } else {
+                HStack(spacing: Theme.Spacing.medium) {
+                    metric(value: heartRateText, label: "BPM", compact: isCompactLayout)
+                    metric(value: distanceText, label: "KM", compact: isCompactLayout)
+                }
             }
 
             if manager.usesHalfFlow {
@@ -148,6 +159,46 @@ struct LiveWorkoutView: View {
                 .foregroundStyle(Theme.Colors.textSecondary)
         }
         .frame(maxWidth: .infinity)
+    }
+
+    private func halftimeMetrics(_ half: FirstHalfStats) -> some View {
+        VStack(spacing: 3) {
+            Text("1.er tiempo")
+                .font(Theme.Typography.statLabel(size: 9))
+                .foregroundStyle(Theme.Colors.textSecondary)
+
+            HStack(spacing: 4) {
+                metric(value: formatDuration(half.durationS), label: "TIEMPO", compact: true)
+                metric(value: formatDistanceKm(half.distanceM), label: "KM", compact: true)
+            }
+            HStack(spacing: 4) {
+                metric(
+                    value: half.averageHeartRate.map { "\($0)" } ?? "--",
+                    label: "MEDIA",
+                    compact: true
+                )
+                metric(value: "\(half.activeKcal)", label: "KCAL", compact: true)
+            }
+
+            HStack(spacing: 4) {
+                Text("Ahora")
+                    .font(Theme.Typography.statLabel(size: 9))
+                    .foregroundStyle(Theme.Colors.textSecondary)
+                Text(heartRateText)
+                    .font(Theme.Typography.metric(size: 15))
+                Text("BPM")
+                    .font(Theme.Typography.statLabel(size: 9))
+                    .foregroundStyle(Theme.Colors.textSecondary)
+            }
+        }
+    }
+
+    private func formatDuration(_ seconds: Int) -> String {
+        String(format: "%d:%02d", seconds / 60, seconds % 60)
+    }
+
+    private func formatDistanceKm(_ meters: Double) -> String {
+        String(format: "%.2f", meters / 1000)
     }
 
     private var clockText: String {

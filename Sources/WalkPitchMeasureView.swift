@@ -4,7 +4,6 @@ import SwiftUI
 struct WalkPitchMeasureView: View {
     @Environment(\.dismiss) private var dismiss
     @StateObject private var measure = PitchWalkMeasureService()
-    @State private var courtName = ""
     var matchType: String?
     var surface: String?
 
@@ -64,14 +63,29 @@ struct WalkPitchMeasureView: View {
     }
 
     private func finishedSection(lengthM: Double, widthM: Double) -> some View {
-        VStack(spacing: 8) {
-            TextField("Court name", text: $courtName)
-                .font(Theme.Typography.body(size: 13))
+        let name = CourtDefaultName.make()
+        return VStack(alignment: .leading, spacing: 8) {
+            Text(String(format: "%.0f × %.0f m", lengthM, widthM))
+                .font(Theme.Typography.metric(size: 22))
+                .foregroundStyle(Theme.Colors.accent)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("NAME")
+                    .font(Theme.Typography.statLabel(size: 9))
+                    .foregroundStyle(Theme.Colors.textSecondary)
+                Text(name)
+                    .font(Theme.Typography.caption(size: 11))
+                    .foregroundStyle(Theme.Colors.textPrimary)
+                    .lineLimit(2)
+            }
+
+            Text("Rename later on iPhone")
+                .font(Theme.Typography.caption(size: 10))
+                .foregroundStyle(Theme.Colors.textSecondary)
 
             primaryButton("Save court") {
-                let name = courtName.trimmingCharacters(in: .whitespacesAndNewlines)
                 _ = CourtStore.shared.saveMeasuredCourt(
-                    name: name.isEmpty ? "My court" : name,
+                    name: name,
                     lengthM: lengthM,
                     widthM: widthM,
                     latitude: CourtLocationService.sharedLastLatitude,

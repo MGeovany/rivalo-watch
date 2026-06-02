@@ -1,6 +1,6 @@
 import Foundation
 
-/// How a pitch is measured (V2-F). Walk on Watch/iPhone; manual on iPhone.
+/// How a pitch is measured (V2-F). Both methods run on Apple Watch.
 enum PitchMeasurementMethod: String, CaseIterable, Identifiable {
     case walk
     case manual
@@ -17,15 +17,12 @@ enum PitchMeasurementMethod: String, CaseIterable, Identifiable {
     var watchSubtitle: String {
         switch self {
         case .walk: "GPS: run length, then width"
-        case .manual: "Type meters on iPhone"
+        case .manual: "Set length & width in meters"
         }
     }
 
     var watchDeviceTags: [String] {
-        switch self {
-        case .walk: ["Watch", "iPhone"]
-        case .manual: ["iPhone"]
-        }
+        ["Watch"]
     }
 
     var systemImage: String {
@@ -35,11 +32,7 @@ enum PitchMeasurementMethod: String, CaseIterable, Identifiable {
         }
     }
 
-    var runsOnWatch: Bool {
-        self == .walk
-    }
+    var runsOnWatch: Bool { true }
 
-    var requiresPhone: Bool {
-        self == .manual
-    }
+    var requiresPhone: Bool { false }
 }

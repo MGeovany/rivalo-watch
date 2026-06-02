@@ -11,6 +11,14 @@ enum MatchSegment: Equatable {
     case secondHalf
 }
 
+/// Snapshot of the first half shown during the break.
+struct FirstHalfStats: Equatable {
+    let durationS: Int
+    let distanceM: Double
+    let averageHeartRate: Int?
+    let activeKcal: Int
+}
+
 @MainActor
 final class WorkoutManager: NSObject, ObservableObject {
     enum Phase: Equatable {
@@ -27,6 +35,7 @@ final class WorkoutManager: NSObject, ObservableObject {
     @Published var activeKcal: Double = 0
     @Published var summary: WorkoutSummary?
     @Published var errorMessage: String?
+    @Published private(set) var isStarting = false
 
     /// Selected match mode: "quick", "structured" or "training".
     @Published var mode: String = "quick"
@@ -37,6 +46,8 @@ final class WorkoutManager: NSObject, ObservableObject {
     @Published private(set) var matchSegment: MatchSegment = .firstHalf
     /// Elapsed break time while in `.halftimeBreak`.
     @Published var breakElapsed: TimeInterval = 0
+    /// Metrics frozen when the first half ended (shown during break).
+    @Published private(set) var firstHalfStats: FirstHalfStats?
 
     /// Current half (1 or 2) for half-based modes.
     @Published private(set) var currentHalf = 1
@@ -105,18 +116,29 @@ final class WorkoutManager: NSObject, ObservableObject {
     /// Starts a new match: requests authorization, opens a workout session and
     /// begins collecting live data.
     func start(setup: MatchSetup = .default) async {
-        guard phase == .idle else { return }
+        guard phase == .idle, !isStarting else {
+            WorkoutLog.debug("start ignored phase=\(String(describing: phase)) isStarting=\(isStarting)")
+            return
+        }
+        isStarting = true
+        errorMessage = nil
+        defer { isStarting = false }
+
         let resolved = setup.resolved
         matchSetup = resolved
         mode = resolved.mode
         startLatitude = CourtLocationService.sharedLastLatitude
         startLongitude = CourtLocationService.sharedLastLongitude
+        WorkoutLog.info("start match mode=\(mode)")
+
         guard HKHealthStore.isHealthDataAvailable() else {
             errorMessage = "Health data is not available on this device."
+            WorkoutLog.error("HealthKit unavailable")
             return
         }
         do {
             try await requestAuthorization()
+            WorkoutLog.info("HealthKit authorized")
 
             let configuration = HKWorkoutConfiguration()
             configuration.activityType = .soccer
@@ -135,12 +157,19 @@ final class WorkoutManager: NSObject, ObservableObject {
 
             session.startActivity(with: start)
             try await builder.beginCollection(at: start)
+            WorkoutLog.info("workout session started at \(start.formatted())")
 
             resetMetrics()
+            tickElapsed()
             phase = .running
             startTimer()
+            WorkoutLog.info("phase=running elapsed=\(Int(elapsed))s")
         } catch {
             errorMessage = error.localizedDescription
+            WorkoutLog.error("start failed: \(error.localizedDescription)")
+            session = nil
+            builder = nil
+            startDate = nil
         }
     }
 
@@ -157,6 +186,12 @@ final class WorkoutManager: NSObject, ObservableObject {
     /// Ends the first half and starts the break clock.
     func finishFirstHalf() {
         guard usesHalfFlow, matchSegment == .firstHalf, phase == .running else { return }
+        firstHalfStats = FirstHalfStats(
+            durationS: Int(elapsed),
+            distanceM: distanceM,
+            averageHeartRate: averageHeartRate(from: samples),
+            activeKcal: Int(activeKcal.rounded())
+        )
         session?.pause()
         phase = .paused
         matchSegment = .halftimeBreak
@@ -271,6 +306,15 @@ final class WorkoutManager: NSObject, ObservableObject {
         breakElapsed = 0
         breakStartedAt = nil
         breakTimerTask?.cancel()
+        firstHalfStats = nil
+    }
+
+    private func averageHeartRate(from samples: [WorkoutSummary.Sample]) -> Int? {
+        let values = samples.compactMap(\.hr)
+        if !values.isEmpty {
+            return values.reduce(0, +) / values.count
+        }
+        return heartRate > 0 ? Int(heartRate) : nil
     }
 
     private func startBreakTimer() {
@@ -285,16 +329,29 @@ final class WorkoutManager: NSObject, ObservableObject {
         }
     }
 
+    /// HealthKit `elapsedTime` is often 0 at session start; fall back to wall clock.
+    private func tickElapsed() {
+        let fromBuilder = builder?.elapsedTime ?? 0
+        let fromStart = startDate.map { Date().timeIntervalSince($0) } ?? 0
+        elapsed = max(fromBuilder, fromStart)
+    }
+
     private func startTimer() {
         timerTask?.cancel()
         timerTask = Task { @MainActor [weak self] in
             var lastEventSent = -5
+            var lastLoggedSecond = -1
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(1))
                 guard let self, self.phase == .running else { continue }
-                self.elapsed = self.builder?.elapsedTime ?? self.startDate.map { Date().timeIntervalSince($0) } ?? 0
+                self.tickElapsed()
 
                 let offset = Int(self.elapsed)
+                if offset != lastLoggedSecond, offset % 10 == 0 {
+                    lastLoggedSecond = offset
+                    let builderS = Int(self.builder?.elapsedTime ?? 0)
+                    WorkoutLog.debug("tick elapsed=\(offset)s builder=\(builderS)s")
+                }
                 if offset - self.lastSampleAt >= self.sampleIntervalS {
                     self.lastSampleAt = offset
                     self.samples.append(WorkoutSummary.Sample(
@@ -401,10 +458,13 @@ extension WorkoutManager: HKWorkoutSessionDelegate {
         didChangeTo toState: HKWorkoutSessionState,
         from fromState: HKWorkoutSessionState,
         date: Date
-    ) {}
+    ) {
+        WorkoutLog.info("session \(String(describing: fromState)) → \(String(describing: toState))")
+    }
 
     nonisolated func workoutSession(_ workoutSession: HKWorkoutSession, didFailWithError error: Error) {
         let message = error.localizedDescription
+        WorkoutLog.error("session failed: \(message)")
         Task { @MainActor [weak self] in
             self?.errorMessage = message
         }

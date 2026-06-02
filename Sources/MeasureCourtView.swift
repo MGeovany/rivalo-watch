@@ -1,12 +1,12 @@
 import SwiftUI
 
-/// V2-F: choose how to measure a court (walk on-watch, manual on iPhone).
+/// V2-F: choose how to measure a court (walk or manual on Apple Watch).
 struct MeasureCourtView: View {
     var matchType: String?
     var surface: String?
 
     @State private var walkMeasureActive = false
-    @State private var phoneStatus: String?
+    @State private var manualMeasureActive = false
 
     var body: some View {
         ScrollView {
@@ -15,14 +15,6 @@ struct MeasureCourtView: View {
                     .font(Theme.Typography.caption(size: 11))
                     .foregroundStyle(Theme.Colors.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
-
-                if let phoneStatus {
-                    Text(phoneStatus)
-                        .font(Theme.Typography.caption(size: 10))
-                        .foregroundStyle(Theme.Colors.accent)
-                        .multilineTextAlignment(.leading)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
 
                 ForEach(PitchMeasurementMethod.allCases) { method in
                     WatchMeasureMethodCard(method: method) {
@@ -39,13 +31,17 @@ struct MeasureCourtView: View {
         .navigationDestination(isPresented: $walkMeasureActive) {
             WalkPitchMeasureView(matchType: matchType, surface: surface)
         }
+        .navigationDestination(isPresented: $manualMeasureActive) {
+            ManualPitchMeasureView(matchType: matchType, surface: surface)
+        }
     }
 
     private func select(_ method: PitchMeasurementMethod) {
-        if method.runsOnWatch {
+        switch method {
+        case .walk:
             walkMeasureActive = true
-        } else {
-            phoneStatus = PhoneSync.shared.requestMeasureCourt(on: method)
+        case .manual:
+            manualMeasureActive = true
         }
     }
 }
