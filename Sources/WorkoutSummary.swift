@@ -22,6 +22,8 @@ struct WorkoutSummary: Equatable {
     var speedMaxKmh: Double?
     var sprints: Int
     var intensity: Double?
+    /// Combined performance score (0–100) from all tracked metrics.
+    var matchRating: Double?
     var caloriesKcal: Double?
     var source: String
     var mode: String
@@ -57,6 +59,7 @@ struct WorkoutSummary: Equatable {
         if let hrMax { dict["hr_max"] = hrMax }
         if let speedMaxKmh { dict["speed_max_kmh"] = speedMaxKmh }
         if let intensity { dict["intensity"] = intensity }
+        if let matchRating { dict["match_rating"] = matchRating }
         if let caloriesKcal { dict["calories_kcal"] = caloriesKcal }
         if let halftimeOffsetS { dict["halftime_offset_s"] = halftimeOffsetS }
         if !samples.isEmpty {

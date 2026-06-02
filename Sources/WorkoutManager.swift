@@ -486,6 +486,16 @@ final class WorkoutManager: NSObject, ObservableObject {
             currentHeartRate: hrAvg ?? 0
         )
 
+        let score = MatchFinalScore.compute(
+            durationS: durationS,
+            distanceM: distance,
+            hrAvg: hrAvg.map { Int($0.rounded()) },
+            speedMaxKmh: snap.topSpeedKmh,
+            sprints: snap.sprints,
+            intensity: snap.intensity,
+            samples: samples
+        )
+
         let summary = WorkoutSummary(
             startedAt: start,
             endedAt: end,
@@ -496,6 +506,7 @@ final class WorkoutManager: NSObject, ObservableObject {
             speedMaxKmh: snap.topSpeedKmh,
             sprints: snap.sprints,
             intensity: snap.intensity.map(Double.init),
+            matchRating: Double(score.overall),
             caloriesKcal: kcal,
             source: "watch",
             mode: mode,
