@@ -25,38 +25,39 @@ struct HalftimeView: View {
     // MARK: - Pages
 
     private var mainPage: some View {
-        VStack(spacing: 6) {
-            Text("HALFTIME")
-                .font(Theme.Typography.statLabel(size: 10))
-                .foregroundStyle(Theme.Colors.accent)
-                .tracking(1.2)
+        ScrollView {
+            VStack(spacing: 6) {
+                Text("HALFTIME")
+                    .font(Theme.Typography.statLabel(size: 10))
+                    .foregroundStyle(Theme.Colors.accent)
+                    .tracking(1.2)
 
-            Text(breakClockText)
-                .font(Theme.Typography.metric(size: 34))
-                .foregroundStyle(Theme.Colors.textPrimary)
-                .monospacedDigit()
+                Text(breakClockText)
+                    .font(Theme.Typography.metric(size: 34))
+                    .foregroundStyle(Theme.Colors.textPrimary)
+                    .monospacedDigit()
 
-            VStack(spacing: 8) {
-                if snapshot.distanceM > 0 {
-                    statRow(
-                        value: formatDistance(snapshot.distanceM),
-                        label: "DISTANCE"
-                    )
+                VStack(spacing: 8) {
+                    if snapshot.distanceM > 0 {
+                        statRow(
+                            value: formatDistance(snapshot.distanceM),
+                            label: "DISTANCE"
+                        )
+                    }
+                    if snapshot.sprints > 0 {
+                        statRow(value: "\(snapshot.sprints)", label: "SPRINTS")
+                    }
+                    if let speed = snapshot.topSpeedKmh, speed > 0 {
+                        statRow(value: String(format: "%.1f", speed), label: "TOP SPD km/h")
+                    }
+                    if let intensity = snapshot.intensity {
+                        intensityRow(score: intensity)
+                    }
                 }
-                if snapshot.sprints > 0 {
-                    statRow(value: "\(snapshot.sprints)", label: "SPRINTS")
-                }
-                if let speed = snapshot.topSpeedKmh, speed > 0 {
-                    statRow(value: String(format: "%.1f", speed), label: "TOP SPD km/h")
-                }
-                if let intensity = snapshot.intensity {
-                    intensityRow(score: intensity)
-                }
+                .padding(.top, 2)
             }
-            .padding(.top, 2)
+            .padding(.horizontal, Theme.Spacing.medium)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding(.horizontal, Theme.Spacing.medium)
     }
 
     private var comparisonPage: some View {

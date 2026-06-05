@@ -112,25 +112,42 @@ struct LiveWorkoutView: View {
     private var halfFlowControls: some View {
         switch manager.matchSegment {
         case .firstHalf:
-            matchButton("End 1st half", style: .primary, compact: false) {
-                manager.finishFirstHalf()
+            VStack(spacing: 4) {
+                matchButton("End 1st half", style: .primary, compact: false) {
+                    manager.finishFirstHalf()
+                }
+                .accessibilityLabel("End first half")
+
+                HStack(spacing: 5) {
+                    matchButton(manager.phase == .paused ? "Resume" : "Pause", style: .secondary, compact: true) {
+                        if manager.phase == .paused { manager.resume() } else { manager.pause() }
+                    }
+                    matchButton("End match", style: .secondary, compact: true) {
+                        Task { await manager.end() }
+                    }
+                }
             }
-            .accessibilityLabel("End first half")
 
         case .halftimeBreak:
             EmptyView()
 
         case .secondHalf:
-            HStack(spacing: 5) {
-                matchButton("Finish", style: .primary, compact: true) {
-                    Task { await manager.end() }
-                }
-                .accessibilityLabel("Finish match")
+            VStack(spacing: 4) {
+                HStack(spacing: 5) {
+                    matchButton("Finish", style: .primary, compact: true) {
+                        Task { await manager.end() }
+                    }
+                    .accessibilityLabel("Finish match")
 
-                matchButton("Restart", style: .secondary, compact: true) {
-                    showRestartConfirm = true
+                    matchButton("Restart", style: .secondary, compact: true) {
+                        showRestartConfirm = true
+                    }
+                    .accessibilityLabel("Restart first half")
                 }
-                .accessibilityLabel("Restart first half")
+
+                matchButton(manager.phase == .paused ? "Resume" : "Pause", style: .secondary, compact: false) {
+                    if manager.phase == .paused { manager.resume() } else { manager.pause() }
+                }
             }
         }
     }
