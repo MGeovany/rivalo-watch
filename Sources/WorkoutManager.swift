@@ -1,5 +1,6 @@
 import Foundation
 @preconcurrency import HealthKit
+import PostHog
 
 /// Drives a match capture using a HealthKit workout session: start, live
 /// metrics (heart rate, distance, energy), pause/resume, and finish with
@@ -171,12 +172,19 @@ final class WorkoutManager: NSObject, ObservableObject {
             startTimer()
             pathRecorder.start()
             WorkoutLog.info("phase=running clock=\(Int(elapsed))s (live)")
+            PostHogSDK.shared.capture("match_started", properties: [
+                "mode": resolved.mode,
+                "match_type": resolved.matchType,
+                "surface": resolved.surface,
+                "has_court": resolved.pitchId != nil,
+            ])
 
             // beginCollection often hangs on-device; never block the match clock on it.
             startDataCollection(at: start, builder: builder)
         } catch {
             errorMessage = error.localizedDescription
             WorkoutLog.error("start failed: \(error.localizedDescription)")
+            PostHogAnalytics.captureError(error, context: "workout_start")
             discardStaleWorkoutSession()
         }
     }
@@ -184,11 +192,19 @@ final class WorkoutManager: NSObject, ObservableObject {
     func pause() {
         session?.pause()
         phase = .paused
+        PostHogSDK.shared.capture("match_paused", properties: [
+            "elapsed_s": Int(elapsed),
+            "mode": mode,
+        ])
     }
 
     func resume() {
         session?.resume()
         phase = .running
+        PostHogSDK.shared.capture("match_resumed", properties: [
+            "elapsed_s": Int(elapsed),
+            "mode": mode,
+        ])
     }
 
     /// Ends the first half and starts the break clock.
@@ -207,6 +223,11 @@ final class WorkoutManager: NSObject, ObservableObject {
         breakStartedAt = Date()
         breakElapsed = 0
         startBreakTimer()
+        PostHogSDK.shared.capture("first_half_ended", properties: [
+            "elapsed_s": durationS,
+            "distance_m": distanceM,
+            "mode": mode,
+        ])
     }
 
     /// Resumes play for the second half.
@@ -219,6 +240,10 @@ final class WorkoutManager: NSObject, ObservableObject {
         breakTimerTask?.cancel()
         session?.resume()
         phase = .running
+        PostHogSDK.shared.capture("second_half_started", properties: [
+            "break_elapsed_s": Int(breakElapsed),
+            "mode": mode,
+        ])
     }
 
     /// Discards second-half data and returns to the first half (no undo).
@@ -236,6 +261,10 @@ final class WorkoutManager: NSObject, ObservableObject {
         breakStartedAt = nil
         session?.resume()
         phase = .running
+        PostHogSDK.shared.capture("first_half_restarted", properties: [
+            "elapsed_s": Int(elapsed),
+            "mode": mode,
+        ])
     }
 
     /// Seconds shown on the main clock for the current segment.
@@ -278,9 +307,11 @@ final class WorkoutManager: NSObject, ObservableObject {
             WorkoutLog.info("workout saved to Health")
         } catch is CollectionTimeout {
             WorkoutLog.error("endCollection timed out")
+            PostHogAnalytics.captureErrorMessage("endCollection timed out", context: "workout_end")
         } catch {
             errorMessage = error.localizedDescription
             WorkoutLog.error("end failed: \(error.localizedDescription)")
+            PostHogAnalytics.captureError(error, context: "workout_end")
         }
 
         let path = pathRecorder.stop(start: startDate)
@@ -288,6 +319,18 @@ final class WorkoutManager: NSObject, ObservableObject {
         summary = result
         UserMatchAveragesStore.shared.recordFinishedMatch(result)
         PhoneSync.shared.send(result)
+        var endProps: [String: Any] = [
+            "duration_s": result.durationS,
+            "distance_m": result.distanceM,
+            "sprints": result.sprints,
+            "mode": result.mode,
+            "match_type": result.matchType ?? "unknown",
+            "surface": result.surface ?? "unknown",
+            "has_court": result.pitchId != nil,
+        ]
+        if let rating = result.matchRating { endProps["match_rating"] = rating }
+        if let hrAvg = result.hrAvg { endProps["hr_avg"] = hrAvg }
+        PostHogSDK.shared.capture("match_ended", properties: endProps)
         phase = .ended
         self.session = nil
         self.builder = nil
@@ -332,6 +375,7 @@ final class WorkoutManager: NSObject, ObservableObject {
                 self?.refreshMetrics()
             } catch {
                 WorkoutLog.error("beginCollection failed: \(error.localizedDescription)")
+                PostHogAnalytics.captureError(error, context: "workout_begin_collection")
             }
         }
     }
@@ -341,12 +385,17 @@ final class WorkoutManager: NSObject, ObservableObject {
     func requestAuthorizationIfNeeded() async {
         guard HKHealthStore.isHealthDataAvailable() else {
             errorMessage = "Health data is not available on this device."
+            PostHogAnalytics.captureErrorMessage(
+                "HealthKit unavailable",
+                context: "health_authorization"
+            )
             return
         }
         do {
             try await requestAuthorization()
         } catch {
             errorMessage = error.localizedDescription
+            PostHogAnalytics.captureError(error, context: "health_authorization")
             return
         }
         // We can only inspect sharing (write) permissions — read permission status is
@@ -354,6 +403,10 @@ final class WorkoutManager: NSObject, ObservableObject {
         let status = healthStore.authorizationStatus(for: HKObjectType.workoutType())
         if status == .sharingDenied {
             errorMessage = "Health access denied. Go to Watch Settings → Privacy → Health → Rivalo and enable all permissions."
+            PostHogAnalytics.captureErrorMessage(
+                "Health access denied",
+                context: "health_authorization"
+            )
         }
     }
 
@@ -581,6 +634,7 @@ extension WorkoutManager: HKWorkoutSessionDelegate {
     nonisolated func workoutSession(_ workoutSession: HKWorkoutSession, didFailWithError error: Error) {
         let message = error.localizedDescription
         WorkoutLog.error("session failed: \(message)")
+        PostHogAnalytics.captureError(error, context: "workout_session")
         Task { @MainActor [weak self] in
             self?.errorMessage = message
         }

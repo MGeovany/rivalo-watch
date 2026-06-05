@@ -1,4 +1,5 @@
 import Foundation
+import PostHog
 
 /// Local store of courts the user has played at (GPS + history).
 @MainActor
@@ -78,6 +79,12 @@ final class CourtStore: ObservableObject {
             matchType: matchType,
             surface: surface
         )
+        PostHogSDK.shared.capture("court_saved", properties: [
+            "measurement_method": measurementMethod,
+            "length_m": lengthM,
+            "width_m": widthM,
+            "has_gps": latitude != nil,
+        ])
         return id
     }
 

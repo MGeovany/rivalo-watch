@@ -1,4 +1,5 @@
 import SwiftUI
+import PostHog
 
 /// Routes between the home, live, and summary screens based on the workout phase.
 struct ContentView: View {
@@ -20,6 +21,7 @@ struct ContentView: View {
         .foregroundStyle(Theme.Colors.textPrimary)
         .onReceive(NotificationCenter.default.publisher(for: .rivaloStartMatchFromPhone)) { _ in
             guard manager.phase == .idle else { return }
+            PostHogSDK.shared.capture("match_started_from_phone")
             let last = LastSetupStore.load()
             Task { await manager.start(setup: last ?? .default) }
         }

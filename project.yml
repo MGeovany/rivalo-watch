@@ -5,6 +5,11 @@ options:
     watchOS: "10.0"
   createIntermediateGroups: true
 
+packages:
+  PostHog:
+    url: https://github.com/PostHog/posthog-ios
+    from: "3.58.0"
+
 settings:
   base:
     SWIFT_VERSION: "6.0"
@@ -18,6 +23,9 @@ targets:
     platform: watchOS
     sources:
       - path: Sources
+    dependencies:
+      - package: PostHog
+        product: PostHog
     info:
       path: Sources/Info.plist
       properties:
@@ -36,6 +44,8 @@ targets:
         NSLocationWhenInUseUsageDescription: Rivalo uses your location to suggest courts you have played at before.
         NSHealthShareUsageDescription: Rivalo reads your heart rate, distance and energy during a match to build your performance summary.
         NSHealthUpdateUsageDescription: Rivalo saves each match as a workout in the Health app.
+        PostHogProjectToken: phc_C6YFLY4Rn6vSqQegH4G4c3nR9seBPZyxqwTpx94RQGZz
+        PostHogHost: https://us.i.posthog.com
         WKBackgroundModes:
           - workout-processing
     entitlements:

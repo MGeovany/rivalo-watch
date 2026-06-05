@@ -1,4 +1,5 @@
 import SwiftUI
+import PostHog
 
 /// Post-match summary: combined score + final stats.
 struct SummaryView: View {
@@ -18,6 +19,18 @@ struct SummaryView: View {
                     .padding(.bottom, 4)
                 }
                 .frame(maxHeight: .infinity)
+                .onAppear {
+                    let result = MatchFinalScore.compute(from: summary)
+                    var props: [String: Any] = [
+                        "duration_s": summary.durationS,
+                        "mode": summary.mode,
+                        "match_type": summary.matchType ?? "unknown",
+                        "score_tier": result.tier,
+                        "match_rating": result.overall,
+                    ]
+                    if let hrAvg = summary.hrAvg { props["hr_avg"] = hrAvg }
+                    PostHogSDK.shared.capture("summary_viewed", properties: props)
+                }
             } else {
                 Text("FULL TIME")
                     .font(Theme.Typography.statLabel(size: 10))

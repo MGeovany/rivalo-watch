@@ -69,6 +69,7 @@ extension MatchPathRecorder: CLLocationManagerDelegate {
     }
 
     nonisolated func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+        PostHogAnalytics.captureError(error, context: "match_path_location")
         Task { @MainActor in
             WorkoutLog.error("path recorder: location error \(error.localizedDescription)")
         }

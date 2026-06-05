@@ -36,7 +36,9 @@ final class PitchWalkMeasureService: NSObject, ObservableObject {
         manager.desiredAccuracy = kCLLocationAccuracyBest
         manager.activityType = .fitness
         manager.distanceFilter = 1
-        manager.allowsBackgroundLocationUpdates = true
+        // Background location is kept alive via WKExtendedRuntimeSession (started in startLength).
+        // Setting allowsBackgroundLocationUpdates = true without declaring "location" in
+        // WKBackgroundModes causes a crash on watchOS — the extended session covers this instead.
     }
 
     func startLength() {
