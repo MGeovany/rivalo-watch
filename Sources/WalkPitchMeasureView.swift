@@ -1,6 +1,7 @@
 import SwiftUI
 
-/// GPS walk/run measurement of pitch length and width on the watch.
+/// GPS walk measurement of pitch length and width on the watch.
+/// Guides the user corner-to-corner with live distance feedback.
 struct WalkPitchMeasureView: View {
     @Environment(\.dismiss) private var dismiss
     @StateObject private var measure = PitchWalkMeasureService()
@@ -10,10 +11,18 @@ struct WalkPitchMeasureView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Theme.Spacing.medium) {
-                Text("Run length, then width.")
-                    .font(Theme.Typography.caption(size: 11))
-                    .foregroundStyle(Theme.Colors.textSecondary)
-                    .fixedSize(horizontal: false, vertical: true)
+                phaseInstructions
+
+                if measure.gpsAccuracy < .infinity {
+                    gpsAccuracyRow
+                }
+
+                if isMeasuring {
+                    Text(String(format: "%.1f m", measure.liveMeters))
+                        .font(Theme.Typography.metric(size: 30))
+                        .foregroundStyle(Theme.Colors.accent)
+                        .monospacedDigit()
+                }
 
                 if let status = measure.status {
                     Text(status)
@@ -21,12 +30,6 @@ struct WalkPitchMeasureView: View {
                         .foregroundStyle(Theme.Colors.textSecondary)
                         .multilineTextAlignment(.leading)
                         .fixedSize(horizontal: false, vertical: true)
-                }
-
-                if isMeasuring {
-                    Text(String(format: "%.0f m", measure.liveMeters))
-                        .font(Theme.Typography.metric(size: 32))
-                        .foregroundStyle(Theme.Colors.accent)
                 }
 
                 phaseButtons
@@ -46,6 +49,56 @@ struct WalkPitchMeasureView: View {
         measure.phase == .measuringLength || measure.phase == .measuringWidth
     }
 
+    // MARK: - Phase instructions
+
+    @ViewBuilder
+    private var phaseInstructions: some View {
+        switch measure.phase {
+        case .readyLength:
+            VStack(alignment: .leading, spacing: 6) {
+                stepRow("1", "Stand at one corner of the goal line")
+                stepRow("2", "Tap Start, then walk straight to the opposite goal line corner")
+            }
+        case .measuringLength:
+            EmptyView()
+        case .readyWidth:
+            VStack(alignment: .leading, spacing: 6) {
+                stepRow("3", "Now stand at a corner of the touchline")
+                stepRow("4", "Tap Start, then walk along the side to the far corner")
+            }
+        case .measuringWidth, .finished:
+            EmptyView()
+        }
+    }
+
+    private var gpsAccuracyRow: some View {
+        HStack(spacing: 5) {
+            Circle()
+                .fill(gpsColor)
+                .frame(width: 7, height: 7)
+            Text(gpsLabel)
+                .font(Theme.Typography.caption(size: 10))
+                .foregroundStyle(Theme.Colors.textSecondary)
+        }
+    }
+
+    private var gpsColor: Color {
+        let acc = measure.gpsAccuracy
+        if acc < 10 { return .green }
+        if acc < 25 { return Theme.Colors.accent }
+        return .orange
+    }
+
+    private var gpsLabel: String {
+        let acc = measure.gpsAccuracy
+        if acc == .infinity { return "Acquiring GPS…" }
+        if acc < 10 { return "GPS ready" }
+        if acc < 25 { return String(format: "GPS ±%.0f m", acc) }
+        return String(format: "GPS weak ±%.0f m — wait", acc)
+    }
+
+    // MARK: - Phase buttons
+
     @ViewBuilder
     private var phaseButtons: some View {
         switch measure.phase {
@@ -61,6 +114,8 @@ struct WalkPitchMeasureView: View {
             EmptyView()
         }
     }
+
+    // MARK: - Finished
 
     private func finishedSection(lengthM: Double, widthM: Double) -> some View {
         let name = CourtDefaultName.make()
@@ -95,6 +150,23 @@ struct WalkPitchMeasureView: View {
                 )
                 dismiss()
             }
+        }
+    }
+
+    // MARK: - Helpers
+
+    private func stepRow(_ number: String, _ text: String) -> some View {
+        HStack(alignment: .top, spacing: 8) {
+            Text(number)
+                .font(Theme.Typography.statLabel(size: 11))
+                .foregroundStyle(.black)
+                .frame(width: 20, height: 20)
+                .background(Theme.Colors.accent)
+                .clipShape(Circle())
+            Text(text)
+                .font(Theme.Typography.caption(size: 11))
+                .foregroundStyle(Theme.Colors.textPrimary)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 

@@ -25,6 +25,7 @@ struct StartView: View {
         }
         .onAppear {
             restoreLastSetup()
+            Task { await manager.requestAuthorizationIfNeeded() }
         }
     }
 

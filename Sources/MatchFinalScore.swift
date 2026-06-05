@@ -51,13 +51,20 @@ enum MatchFinalScore {
 
         let overall: Int
         if components.isEmpty {
-            overall = min(100, max(0, durationS / 60 * 3))
+            // No real metrics were collected — only give a non-zero score if the
+            // user at least ran meaningful distance (>50 m). This prevents a
+            // data-collection failure from generating a spurious score.
+            overall = distanceM > 50 ? min(60, max(0, durationS / 60 * 2)) : 0
         } else {
             let totalWeight = components.reduce(0) { $0 + $1.weight }
             let weighted = components.reduce(0.0) { partial, item in
                 partial + (Double(item.score) * item.weight / totalWeight)
             }
-            overall = Int(min(100, max(0, weighted.rounded())))
+            // Apply a mild compression so 100 requires elite-level performance
+            // across all dimensions (not just one metric maxing out).
+            let raw = min(100.0, max(0.0, weighted))
+            let compressed = raw * 0.92
+            overall = Int(compressed.rounded())
         }
 
         return MatchScoreResult(
@@ -99,22 +106,23 @@ enum MatchFinalScore {
         return HalftimeAnalytics.intensityScore(fromAverageHR: avg)
     }
 
-    /// ~95 m/min at peak amateur output maps to 100.
+    /// Elite amateur output: 110 m/min (10 km in 90 min) maps to 100.
+    /// A typical recreational match (60-70 m/min) scores around 55-65.
     private static func distanceScore(meters: Double, durationS: Int) -> Int? {
         guard durationS > 0, meters > 0 else { return nil }
         let metersPerMinute = meters / (Double(durationS) / 60)
-        return Int(min(100, max(0, (metersPerMinute / 95) * 100).rounded()))
+        return Int(min(100, max(0, (metersPerMinute / 110) * 100).rounded()))
     }
 
-    /// 28 km/h sprint-level maps to 100.
+    /// 30 km/h maps to 100 (requires genuine sprint effort).
     private static func speedPoints(kmh: Double) -> Int {
-        Int(min(100, max(0, (kmh / 28) * 100).rounded()))
+        Int(min(100, max(0, (kmh / 30) * 100).rounded()))
     }
 
-    /// ~12 sprints per 90 min maps to 100.
+    /// ~15 sprints per 90 min maps to 100.
     private static func sprintScore(count: Int, durationS: Int) -> Int {
-        guard durationS > 0 else { return min(100, count * 10) }
+        guard durationS > 0 else { return min(100, count * 7) }
         let per90 = Double(count) / (Double(durationS) / 5400)
-        return Int(min(100, max(0, (per90 / 12) * 100).rounded()))
+        return Int(min(100, max(0, (per90 / 15) * 100).rounded()))
     }
 }

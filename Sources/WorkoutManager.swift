@@ -321,26 +321,39 @@ final class WorkoutManager: NSObject, ObservableObject {
     }
 
     /// Starts HK live metrics collection without blocking the UI clock.
+    /// Runs until beginCollection completes — no timeout, because the timer loop
+    /// calls refreshMetrics() every 3 s as a fallback while we wait.
     private func startDataCollection(at start: Date, builder: HKLiveWorkoutBuilder) {
         Task { @MainActor [weak self] in
-            WorkoutLog.info("beginCollection waiting…")
+            WorkoutLog.info("beginCollection starting…")
             do {
-                try await withThrowingTaskGroup(of: Void.self) { group in
-                    group.addTask { try await builder.beginCollection(at: start) }
-                    group.addTask {
-                        try await Task.sleep(for: .seconds(15))
-                        throw CollectionTimeout()
-                    }
-                    _ = try await group.next()
-                    group.cancelAll()
-                }
+                try await builder.beginCollection(at: start)
                 WorkoutLog.info("beginCollection ok")
-                self?.tickElapsed()
-            } catch is CollectionTimeout {
-                WorkoutLog.error("beginCollection timed out after 15s — clock still runs; restart Watch if metrics stay at 0")
+                self?.refreshMetrics()
             } catch {
                 WorkoutLog.error("beginCollection failed: \(error.localizedDescription)")
             }
+        }
+    }
+
+    /// Call from StartView.onAppear to surface the HealthKit permission dialog early
+    /// and show a Settings redirect when the user has previously denied access.
+    func requestAuthorizationIfNeeded() async {
+        guard HKHealthStore.isHealthDataAvailable() else {
+            errorMessage = "Health data is not available on this device."
+            return
+        }
+        do {
+            try await requestAuthorization()
+        } catch {
+            errorMessage = error.localizedDescription
+            return
+        }
+        // We can only inspect sharing (write) permissions — read permission status is
+        // always .notDetermined for privacy reasons. Check workout type as a proxy.
+        let status = healthStore.authorizationStatus(for: HKObjectType.workoutType())
+        if status == .sharingDenied {
+            errorMessage = "Health access denied. Go to Watch Settings → Privacy → Health → Rivalo and enable all permissions."
         }
     }
 
@@ -398,6 +411,7 @@ final class WorkoutManager: NSObject, ObservableObject {
         timerTask?.cancel()
         timerTask = Task { @MainActor [weak self] in
             var lastEventSent = -5
+            var lastMetricsRefresh = -3
             var lastLoggedSecond = -1
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(1))
@@ -408,8 +422,17 @@ final class WorkoutManager: NSObject, ObservableObject {
                 if offset != lastLoggedSecond, offset % 10 == 0 {
                     lastLoggedSecond = offset
                     let builderS = Int(self.builder?.elapsedTime ?? 0)
-                    WorkoutLog.debug("tick elapsed=\(offset)s builder=\(builderS)s")
+                    WorkoutLog.debug("tick elapsed=\(offset)s builder=\(builderS)s hr=\(Int(self.heartRate)) dist=\(Int(self.distanceM))m")
                 }
+
+                // Refresh metrics from the builder every 3 seconds.
+                // This ensures BPM and distance are picked up even when
+                // beginCollection takes a long time to complete on-device.
+                if offset - lastMetricsRefresh >= 3 {
+                    lastMetricsRefresh = offset
+                    self.refreshMetrics()
+                }
+
                 if offset - self.lastSampleAt >= self.sampleIntervalS {
                     self.lastSampleAt = offset
                     let speedKmh = self.estimateSpeedKmh(at: offset)
@@ -423,6 +446,7 @@ final class WorkoutManager: NSObject, ObservableObject {
                 }
 
                 // Send live event to iPhone every 5 seconds.
+                // Includes the absolute match start time so the iPhone can drive its own clock.
                 if offset - lastEventSent >= 5 {
                     lastEventSent = offset
                     let segment: String
@@ -431,12 +455,16 @@ final class WorkoutManager: NSObject, ObservableObject {
                     case .halftimeBreak: segment = "halftimeBreak"
                     case .secondHalf: segment = "secondHalf"
                     }
+                    let startedAtMs = (self.startDate ?? Date()).timeIntervalSince1970 * 1000
+                    let halftimeStartedAtMs = self.breakStartedAt.map { $0.timeIntervalSince1970 * 1000 }
                     PhoneSync.shared.sendLiveEvent(
                         mode: self.mode,
-                        elapsedS: self.primaryClockSeconds,
+                        startedAtMs: startedAtMs,
                         heartRate: Int(self.heartRate),
                         distanceM: self.distanceM,
-                        segment: segment
+                        segment: segment,
+                        halftimeOffsetS: self.halftimeOffsetS,
+                        halftimeStartedAtMs: halftimeStartedAtMs
                     )
                 }
             }

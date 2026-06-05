@@ -19,6 +19,7 @@ final class PhoneSync: NSObject, WCSessionDelegate, @unchecked Sendable {
         static let startMatch = "startMatch"
         static let measureCourt = "measureCourt"
         static let savePitch = "savePitch"
+        static let pitchWalkProgress = "pitchWalkProgress"
         static let liveEvent = "liveMatchEvent"
         static let matchPause = "matchPause"
         static let matchResume = "matchResume"
@@ -62,20 +63,62 @@ final class PhoneSync: NSObject, WCSessionDelegate, @unchecked Sendable {
         }
     }
 
-    /// Pushes live match state to iPhone. Uses application context (no delivery errors when phone is locked).
-    func sendLiveEvent(mode: String, elapsedS: Int, heartRate: Int, distanceM: Double, segment: String) {
+    /// Pushes live pitch walk meters to iPhone for debugging and session context.
+    func sendPitchWalkProgress(
+        phase: String,
+        liveMeters: Double,
+        lengthM: Double?,
+        gpsAccuracyM: Double
+    ) {
         guard WCSession.isSupported() else { return }
         let session = WCSession.default
         guard session.activationState == .activated else { return }
 
-        let payload: [String: Any] = [
+        var payload: [String: Any] = [
+            Command.actionKey: Command.pitchWalkProgress,
+            "phase": phase,
+            "live_meters": liveMeters,
+            "gps_accuracy_m": gpsAccuracyM.isFinite ? gpsAccuracyM : -1,
+        ]
+        if let lengthM { payload["length_m"] = lengthM }
+
+        do {
+            var context = session.applicationContext
+            for (key, value) in payload {
+                context[key] = value
+            }
+            try session.updateApplicationContext(context)
+        } catch {
+            // Throttled or unchanged context — safe to ignore.
+        }
+    }
+
+    /// Pushes live match state to iPhone via application context.
+    /// Includes the absolute match start timestamp so the iPhone can drive its
+    /// own clock rather than relying on elapsed_s from the watch.
+    func sendLiveEvent(
+        mode: String,
+        startedAtMs: Double,
+        heartRate: Int,
+        distanceM: Double,
+        segment: String,
+        halftimeOffsetS: Int?,
+        halftimeStartedAtMs: Double?
+    ) {
+        guard WCSession.isSupported() else { return }
+        let session = WCSession.default
+        guard session.activationState == .activated else { return }
+
+        var payload: [String: Any] = [
             Command.actionKey: Command.liveEvent,
             "mode": mode,
-            "elapsed_s": elapsedS,
+            "started_at_ms": startedAtMs,
             "heart_rate": heartRate,
             "distance_m": distanceM,
             "segment": segment,
         ]
+        if let halftimeOffsetS { payload["halftime_offset_s"] = halftimeOffsetS }
+        if let halftimeStartedAtMs { payload["halftime_started_at_ms"] = halftimeStartedAtMs }
 
         do {
             var context = session.applicationContext
