@@ -50,7 +50,7 @@ struct ManualPitchMeasureView: View {
                         widthM: Double(widthM),
                         latitude: CourtLocationService.sharedLastLatitude,
                         longitude: CourtLocationService.sharedLastLongitude,
-                        measurementMethod: PitchMeasurementMethod.manual.rawValue,
+                        measurementMethod: "manual",
                         matchType: matchType,
                         surface: surface
                     )

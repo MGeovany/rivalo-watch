@@ -11,13 +11,13 @@ struct StartView: View {
     @State private var selectedFormat: FootballFormatOption = .eleven
     @State private var selectedSurface: SurfaceOption = .turf
     @State private var selectedCourtId: String?
-    @State private var showMeasureCourt = false
+    @State private var showManualMeasure = false
 
     var body: some View {
         NavigationStack {
             startScroll
-                .navigationDestination(isPresented: $showMeasureCourt) {
-                    MeasureCourtView(
+                .navigationDestination(isPresented: $showManualMeasure) {
+                    ManualPitchMeasureView(
                         matchType: selectedFormat.rawValue,
                         surface: selectedSurface.rawValue
                     )
@@ -144,7 +144,7 @@ struct StartView: View {
 
     private var measureCourtButton: some View {
         Button {
-            showMeasureCourt = true
+            showManualMeasure = true
         } label: {
             HStack(spacing: 8) {
                 Image(systemName: "ruler")

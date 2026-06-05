@@ -49,7 +49,7 @@ final class CourtStore: ObservableObject {
         widthM: Double,
         latitude: Double?,
         longitude: Double?,
-        measurementMethod: String = PitchMeasurementMethod.walk.rawValue,
+        measurementMethod: String = "manual",
         matchType: String? = nil,
         surface: String? = nil
     ) -> String {
