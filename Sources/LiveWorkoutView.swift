@@ -34,7 +34,7 @@ struct LiveWorkoutView: View {
     }
 
     private var activePlayView: some View {
-        VStack(spacing: 0) {
+        ScrollView {
             VStack(spacing: isCompactLayout ? 4 : 6) {
                 scrollableContent
             }
@@ -42,10 +42,9 @@ struct LiveWorkoutView: View {
             .padding(.top, 2)
             .frame(maxWidth: .infinity, alignment: .top)
 
-            Spacer(minLength: 12)
-
             liveControls
                 .padding(.horizontal, Theme.Spacing.medium)
+                .padding(.top, 8)
                 .padding(.bottom, 6)
         }
     }
