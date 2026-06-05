@@ -15,11 +15,8 @@ final class PhoneSync: NSObject, WCSessionDelegate, @unchecked Sendable {
 
     private enum Command {
         static let actionKey = "action"
-        static let methodKey = "method"
         static let startMatch = "startMatch"
-        static let measureCourt = "measureCourt"
         static let savePitch = "savePitch"
-        static let pitchWalkProgress = "pitchWalkProgress"
         static let liveEvent = "liveMatchEvent"
         static let matchPause = "matchPause"
         static let matchResume = "matchResume"
@@ -33,63 +30,6 @@ final class PhoneSync: NSObject, WCSessionDelegate, @unchecked Sendable {
         session.delegate = self
         if session.activationState != .activated {
             session.activate()
-        }
-    }
-
-    /// Asks the paired iPhone to open pitch measurement (manual).
-    func requestMeasureCourt(on method: PitchMeasurementMethod) -> String {
-        guard method.requiresPhone else { return "Use Run the pitch on this Watch." }
-        guard WCSession.isSupported() else { return "iPhone not reachable." }
-
-        let session = WCSession.default
-        let payload: [String: Any] = [
-            Command.actionKey: Command.measureCourt,
-            Command.methodKey: method.rawValue,
-        ]
-
-        if session.isReachable {
-            session.sendMessage(payload, replyHandler: nil) { _ in }
-            return "Opening on iPhone…"
-        }
-
-        do {
-            var context = session.applicationContext
-            context[Command.actionKey] = Command.measureCourt
-            context[Command.methodKey] = method.rawValue
-            try session.updateApplicationContext(context)
-            return "Open Rivalo on your iPhone."
-        } catch {
-            return "Open Rivalo on iPhone first."
-        }
-    }
-
-    /// Pushes live pitch walk meters to iPhone for debugging and session context.
-    func sendPitchWalkProgress(
-        phase: String,
-        liveMeters: Double,
-        lengthM: Double?,
-        gpsAccuracyM: Double
-    ) {
-        guard WCSession.isSupported() else { return }
-        let session = WCSession.default
-        guard session.activationState == .activated else { return }
-
-        var payload: [String: Any] = [
-            Command.actionKey: Command.pitchWalkProgress,
-            "phase": phase,
-            "live_meters": liveMeters,
-            "gps_accuracy_m": gpsAccuracyM.isFinite ? gpsAccuracyM : -1,
-        ]
-        if let lengthM { payload["length_m"] = lengthM }
-
-        do {
-            var context = session.applicationContext
-            for (key, value) in payload {
-                context[key] = value
-            }
-            try session.updateApplicationContext(context)
-        } catch {
-            // Throttled or unchanged context — safe to ignore.
         }
     }
 
