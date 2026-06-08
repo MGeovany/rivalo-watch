@@ -241,7 +241,14 @@ final class WorkoutManager: NSObject, ObservableObject {
     /// Resumes play for the second half.
     func startSecondHalf() {
         guard usesHalfFlow, matchSegment == .halftimeBreak else { return }
-        halftimeOffsetS = Int(elapsed)
+        // Capture the offset as wall-clock seconds since match start, which
+        // INCLUDES the halftime break. `elapsed` is wall-clock too (it keeps
+        // advancing through the break), so the 2nd-half clock — elapsed minus
+        // this offset — starts at 0. Using Int(elapsed) here would miss the
+        // break (the timer is paused during it), making the 2nd half start at
+        // the break's duration instead of 0. Samples/path during the 2nd half
+        // also carry these break-inclusive offsets, so the split stays correct.
+        halftimeOffsetS = startDate.map { Int(Date().timeIntervalSince($0)) } ?? Int(elapsed)
         currentHalf = 2
         matchSegment = .secondHalf
         breakStartedAt = nil
