@@ -60,6 +60,11 @@ final class WorkoutManager: NSObject, ObservableObject {
     private var session: HKWorkoutSession?
     private var builder: HKLiveWorkoutBuilder?
     private var startDate: Date?
+    /// Guards `end()` against re-entry. Without it, a second end() call (two
+    /// taps, or iPhone + watch both ending) runs while the first is still in its
+    /// ~10s HealthKit endCollection, calling session.end() on an already-ended
+    /// session — the "Unable to perform 'end' from current state 'Ended'" errors.
+    private var isEnding = false
     private var timerTask: Task<Void, Never>?
     private let pathRecorder = MatchPathRecorder()
 
@@ -289,45 +294,40 @@ final class WorkoutManager: NSObject, ObservableObject {
         }
     }
 
-    /// Ends the match, finalizes collection and computes the aggregate summary.
+    /// Ends the match: builds and sends the summary and transitions the UI
+    /// immediately, then finalizes HealthKit in the background. The slow (and,
+    /// in the simulator, often hanging) endCollection path must NOT block the
+    /// screen or the summary send — otherwise the watch gets stuck on the live
+    /// view and the iPhone never receives the session.
     func end() async {
-        guard let session, let builder, let startDate else { return }
+        guard let session, let builder, let startDate, !isEnding else { return }
+        isEnding = true
         timerTask?.cancel()
         breakTimerTask?.cancel()
-        // Notify iPhone immediately so the live-match view dismisses right away,
-        // before the slow HealthKit endCollection/finishWorkout path completes.
+        // Notify iPhone immediately so the live-match view dismisses right away.
         PhoneSync.shared.notifyMatchEnded()
         WorkoutLog.info("ending match…")
 
         let end = Date()
-        session.stopActivity(with: end)
-        session.end()
-        do {
-            try await withThrowingTaskGroup(of: Void.self) { group in
-                group.addTask { try await builder.endCollection(at: end) }
-                group.addTask {
-                    try await Task.sleep(for: .seconds(10))
-                    throw CollectionTimeout()
-                }
-                _ = try await group.next()
-                group.cancelAll()
-            }
-            _ = try? await builder.finishWorkout()
-            WorkoutLog.info("workout saved to Health")
-        } catch is CollectionTimeout {
-            WorkoutLog.error("endCollection timed out")
-            PostHogAnalytics.captureErrorMessage("endCollection timed out", context: "workout_end")
-        } catch {
-            errorMessage = error.localizedDescription
-            WorkoutLog.error("end failed: \(error.localizedDescription)")
-            PostHogAnalytics.captureError(error, context: "workout_end")
-        }
-
+        // Build the summary from the builder's accumulated stats (available now,
+        // without waiting for endCollection) and the in-memory samples.
         let path = pathRecorder.stop(start: startDate)
         let result = makeSummary(start: startDate, end: end, builder: builder, path: path)
         summary = result
         UserMatchAveragesStore.shared.recordFinishedMatch(result)
+
+        // Breadcrumb: confirms the watch reached the summary-send step. If this
+        // fires but the iPhone never logs receipt, the gap is in WatchConnectivity
+        // delivery, not in end().
+        PostHogSDK.shared.capture("watch_summary_sent", properties: [
+            "duration_s": result.durationS,
+            "distance_m": result.distanceM,
+            "mode": result.mode,
+            "has_halftime": result.halftimeOffsetS != nil,
+            "sample_count": result.samples.count,
+        ])
         PhoneSync.shared.send(result)
+
         var endProps: [String: Any] = [
             "duration_s": result.durationS,
             "distance_m": result.distanceM,
@@ -340,10 +340,48 @@ final class WorkoutManager: NSObject, ObservableObject {
         if let rating = result.matchRating { endProps["match_rating"] = rating }
         if let hrAvg = result.hrAvg { endProps["hr_avg"] = hrAvg }
         PostHogSDK.shared.capture("match_ended", properties: endProps)
+
+        // Transition the UI now — the user sees the summary screen at once.
         phase = .ended
         self.session = nil
         self.builder = nil
         self.startDate = nil
+        isEnding = false
+
+        // Persist to HealthKit in the background, best-effort. Failures here do
+        // not affect the summary already sent to the iPhone.
+        finalizeHealthKit(session: session, builder: builder, at: end)
+    }
+
+    /// Stops and finalizes the HealthKit workout off the critical path.
+    private func finalizeHealthKit(session: HKWorkoutSession, builder: HKLiveWorkoutBuilder, at end: Date) {
+        Task { @MainActor in
+            // Only drive the session if it is still active; in the simulator it
+            // can already be .ended/.stopped, where these calls fail.
+            if session.state == .running || session.state == .paused {
+                session.stopActivity(with: end)
+                session.end()
+            }
+            do {
+                try await withThrowingTaskGroup(of: Void.self) { group in
+                    group.addTask { try await builder.endCollection(at: end) }
+                    group.addTask {
+                        try await Task.sleep(for: .seconds(10))
+                        throw CollectionTimeout()
+                    }
+                    _ = try await group.next()
+                    group.cancelAll()
+                }
+                _ = try? await builder.finishWorkout()
+                WorkoutLog.info("workout saved to Health")
+            } catch is CollectionTimeout {
+                WorkoutLog.error("endCollection timed out")
+                PostHogAnalytics.captureErrorMessage("endCollection timed out", context: "workout_end")
+            } catch {
+                WorkoutLog.error("end failed: \(error.localizedDescription)")
+                PostHogAnalytics.captureError(error, context: "workout_end")
+            }
+        }
     }
 
     /// Returns to the idle home screen, discarding the finished summary.
@@ -353,6 +391,7 @@ final class WorkoutManager: NSObject, ObservableObject {
         errorMessage = nil
         resetMetrics()
         phase = .idle
+        isEnding = false
     }
 
     // MARK: - Internals

@@ -73,7 +73,17 @@ final class PhoneSync: NSObject, WCSessionDelegate, @unchecked Sendable {
 
     func send(_ summary: WorkoutSummary) {
         guard WCSession.isSupported() else { return }
-        WCSession.default.transferUserInfo(summary.asUserInfo())
+        let session = WCSession.default
+        let payload = summary.asUserInfo()
+        // Immediate path: sendMessage works when the iPhone is reachable and is
+        // reliable in the simulator, where transferUserInfo is often not
+        // delivered. transferUserInfo always runs too as the guaranteed-delivery
+        // fallback for backgrounded/real-device cases; the iPhone dedupes by
+        // startedAt, so receiving both is safe.
+        if session.activationState == .activated, session.isReachable {
+            session.sendMessage(payload, replyHandler: { _ in }, errorHandler: nil)
+        }
+        session.transferUserInfo(payload)
     }
 
     /// Sends an immediate "match ended" signal to the iPhone so the live-match
