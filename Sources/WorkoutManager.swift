@@ -223,6 +223,9 @@ final class WorkoutManager: NSObject, ObservableObject {
         breakStartedAt = Date()
         breakElapsed = 0
         startBreakTimer()
+        // Notify iPhone right away — the main timer is now paused and won't
+        // emit live events again until the second half starts.
+        pushLiveEvent()
         PostHogSDK.shared.capture("first_half_ended", properties: [
             "elapsed_s": durationS,
             "distance_m": distanceM,
@@ -240,6 +243,9 @@ final class WorkoutManager: NSObject, ObservableObject {
         breakTimerTask?.cancel()
         session?.resume()
         phase = .running
+        // Push the resumed state immediately so the iPhone leaves the break
+        // view without waiting for the next 5s timer tick.
+        pushLiveEvent()
         PostHogSDK.shared.capture("second_half_started", properties: [
             "break_elapsed_s": Int(breakElapsed),
             "mode": mode,
@@ -288,6 +294,9 @@ final class WorkoutManager: NSObject, ObservableObject {
         guard let session, let builder, let startDate else { return }
         timerTask?.cancel()
         breakTimerTask?.cancel()
+        // Notify iPhone immediately so the live-match view dismisses right away,
+        // before the slow HealthKit endCollection/finishWorkout path completes.
+        PhoneSync.shared.notifyMatchEnded()
         WorkoutLog.info("ending match…")
 
         let end = Date()
@@ -441,6 +450,30 @@ final class WorkoutManager: NSObject, ObservableObject {
         lastSampleDistanceM = 0
     }
 
+    /// Pushes the current live-match state to the iPhone immediately.
+    /// Used by the 5s timer and at half transitions, where the main timer is
+    /// paused (phase != .running) and would otherwise send nothing until play
+    /// resumes — leaving the iPhone unaware of the halftime break.
+    private func pushLiveEvent() {
+        let segment: String
+        switch matchSegment {
+        case .firstHalf: segment = "firstHalf"
+        case .halftimeBreak: segment = "halftimeBreak"
+        case .secondHalf: segment = "secondHalf"
+        }
+        let startedAtMs = (startDate ?? Date()).timeIntervalSince1970 * 1000
+        let halftimeStartedAtMs = breakStartedAt.map { $0.timeIntervalSince1970 * 1000 }
+        PhoneSync.shared.sendLiveEvent(
+            mode: mode,
+            startedAtMs: startedAtMs,
+            heartRate: Int(heartRate),
+            distanceM: distanceM,
+            segment: segment,
+            halftimeOffsetS: halftimeOffsetS,
+            halftimeStartedAtMs: halftimeStartedAtMs
+        )
+    }
+
     private func startBreakTimer() {
         breakTimerTask?.cancel()
         breakTimerTask = Task { @MainActor [weak self] in
@@ -502,23 +535,7 @@ final class WorkoutManager: NSObject, ObservableObject {
                 // Includes the absolute match start time so the iPhone can drive its own clock.
                 if offset - lastEventSent >= 5 {
                     lastEventSent = offset
-                    let segment: String
-                    switch self.matchSegment {
-                    case .firstHalf: segment = "firstHalf"
-                    case .halftimeBreak: segment = "halftimeBreak"
-                    case .secondHalf: segment = "secondHalf"
-                    }
-                    let startedAtMs = (self.startDate ?? Date()).timeIntervalSince1970 * 1000
-                    let halftimeStartedAtMs = self.breakStartedAt.map { $0.timeIntervalSince1970 * 1000 }
-                    PhoneSync.shared.sendLiveEvent(
-                        mode: self.mode,
-                        startedAtMs: startedAtMs,
-                        heartRate: Int(self.heartRate),
-                        distanceM: self.distanceM,
-                        segment: segment,
-                        halftimeOffsetS: self.halftimeOffsetS,
-                        halftimeStartedAtMs: halftimeStartedAtMs
-                    )
+                    self.pushLiveEvent()
                 }
             }
         }

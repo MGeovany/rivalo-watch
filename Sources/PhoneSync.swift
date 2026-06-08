@@ -76,6 +76,24 @@ final class PhoneSync: NSObject, WCSessionDelegate, @unchecked Sendable {
         WCSession.default.transferUserInfo(summary.asUserInfo())
     }
 
+    /// Sends an immediate "match ended" signal to the iPhone so the live-match
+    /// view dismisses at once, without waiting for transferUserInfo delivery.
+    /// Uses sendMessage when reachable; falls back to updateApplicationContext.
+    func notifyMatchEnded() {
+        guard WCSession.isSupported() else { return }
+        let session = WCSession.default
+        guard session.activationState == .activated else { return }
+        let payload: [String: Any] = [Command.actionKey: Command.matchEnd]
+        if session.isReachable {
+            // Non-nil replyHandler so iPhone receives this via
+            // session(_:didReceiveMessage:replyHandler:).
+            session.sendMessage(payload, replyHandler: { _ in }, errorHandler: nil)
+        } else {
+            // Fallback: context is best-effort but better than nothing.
+            try? session.updateApplicationContext(payload)
+        }
+    }
+
     /// Sends a measured court to the iPhone for `POST /v1/pitches`.
     func sendPitchToPhone(
         name: String,
