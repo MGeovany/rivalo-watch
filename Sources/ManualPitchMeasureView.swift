@@ -12,6 +12,10 @@ struct ManualPitchMeasureView: View {
     @StateObject private var location = CourtLocationService()
     /// Captured pitch orientation (own goal -> rival goal). nil until the user fixes it.
     @State private var capturedHeading: Double?
+    // "Walk two points": A = own goal-line center, B = rival goal-line center.
+    @State private var walkA: (lat: Double, lon: Double)?
+    @State private var walkB: (lat: Double, lon: Double)?
+    @State private var walkCenter: (lat: Double, lon: Double)?
 
     private let defaultName = CourtDefaultName.make()
 
@@ -48,15 +52,17 @@ struct ManualPitchMeasureView: View {
 
                 orientationSection
 
+                walkSection
+
                 Button {
                     _ = CourtStore.shared.saveMeasuredCourt(
                         name: defaultName,
                         lengthM: Double(lengthM),
                         widthM: Double(widthM),
-                        latitude: location.latitude ?? CourtLocationService.sharedLastLatitude,
-                        longitude: location.longitude ?? CourtLocationService.sharedLastLongitude,
+                        latitude: walkCenter?.lat ?? location.latitude ?? CourtLocationService.sharedLastLatitude,
+                        longitude: walkCenter?.lon ?? location.longitude ?? CourtLocationService.sharedLastLongitude,
                         headingDeg: capturedHeading,
-                        measurementMethod: "manual",
+                        measurementMethod: walkCenter != nil ? "walk" : "manual",
                         matchType: matchType,
                         surface: surface
                     )
@@ -78,8 +84,70 @@ struct ManualPitchMeasureView: View {
         .onAppear {
             location.requestLocation()
             location.startHeading()
+            location.startTracking()
         }
-        .onDisappear { location.stopHeading() }
+        .onDisappear {
+            location.stopHeading()
+            location.stopTracking()
+        }
+    }
+
+    /// Walk-two-points: mark A (your goal line), walk, mark B (rival goal line).
+    /// Derives length, orientation and center automatically.
+    @ViewBuilder
+    private var walkSection: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("OR WALK IT")
+                .font(Theme.Typography.statLabel(size: 9))
+                .foregroundStyle(Theme.Colors.textSecondary)
+            Text("Sets size + orientation. Stand on your goal line for A, the rival goal line for B.")
+                .font(Theme.Typography.caption(size: 11))
+                .foregroundStyle(Theme.Colors.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+            HStack(spacing: 5) {
+                walkButton(walkA == nil ? "Mark A" : "A ✓") {
+                    if let lat = location.latitude, let lon = location.longitude {
+                        walkA = (lat, lon); applyWalkIfComplete()
+                    }
+                }
+                walkButton(walkB == nil ? "Mark B" : "B ✓") {
+                    if let lat = location.latitude, let lon = location.longitude {
+                        walkB = (lat, lon); applyWalkIfComplete()
+                    }
+                }
+                .disabled(walkA == nil)
+            }
+            if walkCenter != nil, let heading = capturedHeading {
+                Text(String(format: "✓ %d × %d m · %.0f°", lengthM, widthM, heading))
+                    .font(Theme.Typography.caption(size: 11))
+                    .foregroundStyle(Theme.Colors.accent)
+            }
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Theme.Colors.surface)
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+    }
+
+    private func walkButton(_ title: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(Theme.Typography.button(size: 12))
+                .foregroundStyle(Theme.Colors.accent)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 7)
+                .background(Capsule().stroke(Theme.Colors.accent, lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func applyWalkIfComplete() {
+        guard let a = walkA, let b = walkB else { return }
+        let length = GeoMath.distanceM(lat1: a.lat, lon1: a.lon, lat2: b.lat, lon2: b.lon)
+        guard length > 0 else { return }
+        lengthM = Int(length.rounded())
+        capturedHeading = GeoMath.bearingDeg(lat1: a.lat, lon1: a.lon, lat2: b.lat, lon2: b.lon)
+        walkCenter = GeoMath.midpoint(lat1: a.lat, lon1: a.lon, lat2: b.lat, lon2: b.lon)
     }
 
     /// Capture the pitch orientation: the user points toward the rival goal and
@@ -92,7 +160,7 @@ struct ManualPitchMeasureView: View {
                 .font(Theme.Typography.statLabel(size: 9))
                 .foregroundStyle(Theme.Colors.textSecondary)
             Text(capturedHeading == nil
-                 ? "Point toward the rival goal, then fix."
+                 ? "If you typed the size, point toward the rival goal and fix the direction."
                  : String(format: "Fixed at %.0f°", capturedHeading!))
                 .font(Theme.Typography.caption(size: 11))
                 .foregroundStyle(capturedHeading == nil ? Theme.Colors.textSecondary : Theme.Colors.accent)

@@ -47,6 +47,19 @@ final class CourtLocationService: NSObject, ObservableObject {
     func stopHeading() {
         manager.stopUpdatingHeading()
     }
+
+    /// Streams live location (for the "walk two points" measurement).
+    func startTracking() {
+        let auth = manager.authorizationStatus
+        if auth == .notDetermined {
+            manager.requestWhenInUseAuthorization()
+        }
+        manager.startUpdatingLocation()
+    }
+
+    func stopTracking() {
+        manager.stopUpdatingLocation()
+    }
 }
 
 extension CourtLocationService: CLLocationManagerDelegate {
