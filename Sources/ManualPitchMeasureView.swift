@@ -143,11 +143,32 @@ struct ManualPitchMeasureView: View {
 
     private func applyWalkIfComplete() {
         guard let a = walkA, let b = walkB else { return }
-        let length = GeoMath.distanceM(lat1: a.lat, lon1: a.lon, lat2: b.lat, lon2: b.lon)
+        let length = Self.distanceM(lat1: a.lat, lon1: a.lon, lat2: b.lat, lon2: b.lon)
         guard length > 0 else { return }
         lengthM = Int(length.rounded())
-        capturedHeading = GeoMath.bearingDeg(lat1: a.lat, lon1: a.lon, lat2: b.lat, lon2: b.lon)
-        walkCenter = GeoMath.midpoint(lat1: a.lat, lon1: a.lon, lat2: b.lat, lon2: b.lon)
+        capturedHeading = Self.bearingDeg(lat1: a.lat, lon1: a.lon, lat2: b.lat, lon2: b.lon)
+        walkCenter = ((a.lat + b.lat) / 2, (a.lon + b.lon) / 2)
+    }
+
+    /// Great-circle distance in meters (haversine).
+    private static func distanceM(lat1: Double, lon1: Double, lat2: Double, lon2: Double) -> Double {
+        let r = 6_371_000.0
+        let dLat = (lat2 - lat1) * .pi / 180
+        let dLon = (lon2 - lon1) * .pi / 180
+        let aa = sin(dLat / 2) * sin(dLat / 2)
+            + cos(lat1 * .pi / 180) * cos(lat2 * .pi / 180) * sin(dLon / 2) * sin(dLon / 2)
+        return r * 2 * atan2(sqrt(aa), sqrt(1 - aa))
+    }
+
+    /// Initial bearing A→B in degrees from true north (0…360).
+    private static func bearingDeg(lat1: Double, lon1: Double, lat2: Double, lon2: Double) -> Double {
+        let p1 = lat1 * .pi / 180
+        let p2 = lat2 * .pi / 180
+        let dLon = (lon2 - lon1) * .pi / 180
+        let y = sin(dLon) * cos(p2)
+        let x = cos(p1) * sin(p2) - sin(p1) * cos(p2) * cos(dLon)
+        let deg = atan2(y, x) * 180 / .pi
+        return (deg + 360).truncatingRemainder(dividingBy: 360)
     }
 
     /// Capture the pitch orientation: the user points toward the rival goal and
