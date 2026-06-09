@@ -18,17 +18,17 @@ struct LiveWorkoutView: View {
             }
         }
         .confirmationDialog(
-            "Restart 1st half?",
+            "¿Reiniciar 1er tiempo?",
             isPresented: $showRestartConfirm,
             titleVisibility: .visible
         ) {
-            Button("Restart", role: .destructive) {
+            Button("Reiniciar", role: .destructive) {
                 manager.restartFirstHalf()
             }
-            Button("Cancel", role: .cancel) {}
+            Button("Cancelar", role: .cancel) {}
         } message: {
             Text(
-                "You cannot resume the 2nd half. Second-half metrics will be lost."
+                "No puedes reanudar el 2do tiempo. Las métricas del segundo tiempo se perderán."
             )
         }
     }
@@ -79,7 +79,7 @@ struct LiveWorkoutView: View {
         if manager.usesHalfFlow {
             halfFlowControls
         } else {
-            matchButton("Finish", style: .primary, compact: false) {
+            matchButton("Finalizar", style: .primary, compact: false) {
                 Task { await manager.end() }
             }
         }
@@ -92,13 +92,13 @@ struct LiveWorkoutView: View {
         if manager.usesHalfFlow {
             switch manager.matchSegment {
             case .firstHalf:
-                Text("1ST HALF")
+                Text("1ER TIEMPO")
                     .font(Theme.Typography.statLabel(size: 10))
                     .foregroundStyle(Theme.Colors.textSecondary)
             case .halftimeBreak:
                 EmptyView()
             case .secondHalf:
-                Text("2ND HALF")
+                Text("2DO TIEMPO")
                     .font(Theme.Typography.statLabel(size: 10))
                     .foregroundStyle(Theme.Colors.textSecondary)
             }
@@ -112,16 +112,16 @@ struct LiveWorkoutView: View {
         switch manager.matchSegment {
         case .firstHalf:
             VStack(spacing: 4) {
-                matchButton("End 1st half", style: .primary, compact: false) {
+                matchButton("Finalizar 1er tiempo", style: .primary, compact: false) {
                     manager.finishFirstHalf()
                 }
-                .accessibilityLabel("End first half")
+                .accessibilityLabel("Finalizar primer tiempo")
 
                 HStack(spacing: 5) {
-                    matchButton(manager.phase == .paused ? "Resume" : "Pause", style: .secondary, compact: true) {
+                    matchButton(manager.phase == .paused ? "Reanudar" : "Pausa", style: .secondary, compact: true) {
                         if manager.phase == .paused { manager.resume() } else { manager.pause() }
                     }
-                    matchButton("End match", style: .secondary, compact: true) {
+                    matchButton("Finalizar partido", style: .secondary, compact: true) {
                         Task { await manager.end() }
                     }
                 }
@@ -133,18 +133,18 @@ struct LiveWorkoutView: View {
         case .secondHalf:
             VStack(spacing: 4) {
                 HStack(spacing: 5) {
-                    matchButton("Finish", style: .primary, compact: true) {
+                    matchButton("Finalizar", style: .primary, compact: true) {
                         Task { await manager.end() }
                     }
-                    .accessibilityLabel("Finish match")
+                    .accessibilityLabel("Finalizar partido")
 
-                    matchButton("Restart", style: .secondary, compact: true) {
+                    matchButton("Reiniciar", style: .secondary, compact: true) {
                         showRestartConfirm = true
                     }
-                    .accessibilityLabel("Restart first half")
+                    .accessibilityLabel("Reiniciar primer tiempo")
                 }
 
-                matchButton(manager.phase == .paused ? "Resume" : "Pause", style: .secondary, compact: false) {
+                matchButton(manager.phase == .paused ? "Reanudar" : "Pausa", style: .secondary, compact: false) {
                     if manager.phase == .paused { manager.resume() } else { manager.pause() }
                 }
             }

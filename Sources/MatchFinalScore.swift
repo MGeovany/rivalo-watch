@@ -91,11 +91,11 @@ enum MatchFinalScore {
 
     private static func tier(for score: Int) -> String {
         switch score {
-        case 90...: return "ELITE"
-        case 75..<90: return "STRONG"
-        case 60..<75: return "SOLID"
-        case 45..<60: return "BUILDING"
-        default: return "LIGHT"
+        case 90...: return "ÉLITE"
+        case 75..<90: return "FUERTE"
+        case 60..<75: return "SÓLIDO"
+        case 45..<60: return "EN PROGRESO"
+        default: return "LIGERO"
         }
     }
 

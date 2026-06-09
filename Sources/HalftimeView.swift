@@ -27,7 +27,7 @@ struct HalftimeView: View {
     private var mainPage: some View {
         ScrollView {
             VStack(spacing: 6) {
-                Text("HALFTIME")
+                Text("DESCANSO")
                     .font(Theme.Typography.statLabel(size: 10))
                     .foregroundStyle(Theme.Colors.accent)
                     .tracking(1.2)
@@ -41,14 +41,14 @@ struct HalftimeView: View {
                     if snapshot.distanceM > 0 {
                         statRow(
                             value: formatDistance(snapshot.distanceM),
-                            label: "DISTANCE"
+                            label: "DISTANCIA"
                         )
                     }
                     if snapshot.sprints > 0 {
                         statRow(value: "\(snapshot.sprints)", label: "SPRINTS")
                     }
                     if let speed = snapshot.topSpeedKmh, speed > 0 {
-                        statRow(value: String(format: "%.1f", speed), label: "TOP SPD km/h")
+                        statRow(value: String(format: "%.1f", speed), label: "VEL MÁX km/h")
                     }
                     if let intensity = snapshot.intensity {
                         intensityRow(score: intensity)
@@ -62,7 +62,7 @@ struct HalftimeView: View {
 
     private var comparisonPage: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("VS AVG")
+                Text("VS PROM")
                 .font(Theme.Typography.statLabel(size: 10))
                 .foregroundStyle(Theme.Colors.textSecondary)
                 .tracking(1)
@@ -91,7 +91,7 @@ struct HalftimeView: View {
                     )
                 }
             } else {
-                Text("Play more matches")
+                Text("Juega más partidos")
                     .font(Theme.Typography.caption(size: 11))
                     .foregroundStyle(Theme.Colors.textSecondary)
             }
@@ -132,7 +132,7 @@ struct HalftimeView: View {
         Button {
             manager.startSecondHalf()
         } label: {
-            Text("START SECOND HALF")
+            Text("INICIAR 2DO TIEMPO")
                 .font(Theme.Typography.button(size: 11))
                 .foregroundStyle(Color.black)
                 .frame(maxWidth: .infinity)
@@ -141,7 +141,7 @@ struct HalftimeView: View {
         .buttonStyle(.plain)
         .background(Theme.Colors.accent)
         .clipShape(Capsule())
-        .accessibilityLabel("Start second half")
+        .accessibilityLabel("Iniciar segundo tiempo")
     }
 
     private func statRow(value: String, label: String) -> some View {
@@ -162,7 +162,7 @@ struct HalftimeView: View {
                 .font(Theme.Typography.metric(size: 22))
                 .foregroundStyle(Theme.Colors.accent)
             Spacer(minLength: 8)
-            Text("INTENSITY")
+            Text("INTENSIDAD")
                 .font(Theme.Typography.statLabel(size: 9))
                 .foregroundStyle(Theme.Colors.textSecondary)
         }

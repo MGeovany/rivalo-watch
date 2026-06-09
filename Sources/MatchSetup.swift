@@ -43,9 +43,9 @@ enum MatchModeOption: String, CaseIterable, Identifiable {
 
     var label: String {
         switch self {
-        case .quick: "Quick"
-        case .structured: "Structured"
-        case .training: "Training"
+        case .quick: "Rápido"
+        case .structured: "Estructurado"
+        case .training: "Entrenamiento"
         }
     }
 }
@@ -89,11 +89,11 @@ enum SurfaceOption: String, CaseIterable, Identifiable {
 
     var shortLabel: String {
         switch self {
-        case .natural: "Grass"
-        case .turf: "Turf"
+        case .natural: "Césped"
+        case .turf: "C. artificial"
         case .indoor: "Indoor"
-        case .concrete: "Concrete"
-        case .other: "Other"
+        case .concrete: "Concreto"
+        case .other: "Otro"
         }
     }
 }

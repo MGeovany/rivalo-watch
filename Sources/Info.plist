@@ -19,11 +19,11 @@
 	<key>CFBundleVersion</key>
 	<string>1</string>
 	<key>NSHealthShareUsageDescription</key>
-	<string>Rivalo reads your heart rate, distance and energy during a match to build your performance summary.</string>
+	<string>Rivalo lee tu frecuencia cardíaca, distancia y energía durante un partido para construir tu resumen de rendimiento.</string>
 	<key>NSHealthUpdateUsageDescription</key>
-	<string>Rivalo saves each match as a workout in the Health app.</string>
+	<string>Rivalo guarda cada partido como un entrenamiento en la app Salud.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Rivalo uses your location to suggest courts you have played at before.</string>
+	<string>Rivalo usa tu ubicación para sugerir canchas donde has jugado antes.</string>
 	<key>PostHogHost</key>
 	<string>https://us.i.posthog.com</string>
 	<key>PostHogProjectToken</key>

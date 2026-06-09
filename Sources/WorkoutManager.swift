@@ -134,7 +134,7 @@ final class WorkoutManager: NSObject, ObservableObject {
         WorkoutLog.info("start match mode=\(mode)")
 
         guard HKHealthStore.isHealthDataAvailable() else {
-            errorMessage = "Health data is not available on this device."
+            errorMessage = "Los datos de salud no están disponibles en este dispositivo."
             WorkoutLog.error("HealthKit unavailable")
             return
         }
@@ -439,7 +439,7 @@ final class WorkoutManager: NSObject, ObservableObject {
     /// and show a Settings redirect when the user has previously denied access.
     func requestAuthorizationIfNeeded() async {
         guard HKHealthStore.isHealthDataAvailable() else {
-            errorMessage = "Health data is not available on this device."
+            errorMessage = "Los datos de salud no están disponibles en este dispositivo."
             PostHogAnalytics.captureErrorMessage(
                 "HealthKit unavailable",
                 context: "health_authorization"
@@ -457,7 +457,7 @@ final class WorkoutManager: NSObject, ObservableObject {
         // always .notDetermined for privacy reasons. Check workout type as a proxy.
         let status = healthStore.authorizationStatus(for: HKObjectType.workoutType())
         if status == .sharingDenied {
-            errorMessage = "Health access denied. Go to Watch Settings → Privacy → Health → Rivalo and enable all permissions."
+            errorMessage = "Acceso a salud denegado. Ve a Ajustes del Reloj → Privacidad → Salud → Rivalo y activa todos los permisos."
             PostHogAnalytics.captureErrorMessage(
                 "Health access denied",
                 context: "health_authorization"

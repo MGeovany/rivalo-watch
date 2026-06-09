@@ -73,7 +73,7 @@ struct StartView: View {
         Button {
             Task { await manager.start(setup: buildSetup()) }
         } label: {
-            Text(manager.isStarting ? "Starting…" : "Start match")
+            Text(manager.isStarting ? "Iniciando…" : "Iniciar partido")
                 .font(Theme.Typography.button(size: 16))
                 .foregroundStyle(Color.black)
                 .frame(maxWidth: .infinity)
@@ -149,7 +149,7 @@ struct StartView: View {
             HStack(spacing: 8) {
                 Image(systemName: "ruler")
                     .font(.system(size: 14, weight: .semibold))
-                Text("Measure court")
+                Text("Medir cancha")
                     .font(Theme.Typography.button(size: 15))
             }
             .foregroundStyle(Theme.Colors.accent)
@@ -173,7 +173,7 @@ struct StartView: View {
     // MARK: - Sections
 
     private var modeSection: some View {
-        WatchSetupSection(title: "Mode") {
+        WatchSetupSection(title: "Modo") {
             VStack(spacing: 6) {
                 ForEach(MatchModeOption.allCases) { option in
                     WatchSetupChip(
@@ -188,13 +188,13 @@ struct StartView: View {
     }
 
     private var formatSection: some View {
-        WatchSetupSection(title: "Football") {
+        WatchSetupSection(title: "Fútbol") {
             WatchFootballFormatGrid(selection: $selectedFormat)
         }
     }
 
     private var surfaceSection: some View {
-        WatchSetupSection(title: "Surface") {
+        WatchSetupSection(title: "Superficie") {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 6) {
                     ForEach(SurfaceOption.allCases) { option in
@@ -212,7 +212,7 @@ struct StartView: View {
     }
 
     private var courtSection: some View {
-        WatchSetupSection(title: "Court") {
+        WatchSetupSection(title: "Cancha") {
             VStack(alignment: .leading, spacing: 6) {
                 if let status = location.status {
                     Text(status)
@@ -221,8 +221,8 @@ struct StartView: View {
                 }
 
                 WatchSetupChip(
-                    title: "No court",
-                    subtitle: "Set later on iPhone",
+                    title: "Sin cancha",
+                    subtitle: "Configurar luego en el iPhone",
                     isSelected: selectedCourtId == nil
                 ) {
                     selectedCourtId = nil
@@ -247,12 +247,12 @@ struct StartView: View {
         }
         if let meters = court.distanceM {
             if meters < 200 {
-                return String(format: "%.0f m away", meters)
+                return String(format: "a %.0f m", meters)
             }
             return String(format: "%.1f km", meters / 1000)
         }
         if court.playCount > 0 {
-            return "\(court.playCount) matches here"
+            return "\(court.playCount) \(court.playCount == 1 ? "partido aquí" : "partidos aquí")"
         }
         return nil
     }

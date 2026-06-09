@@ -32,7 +32,7 @@ final class CourtLocationService: NSObject, ObservableObject {
         case .authorizedWhenInUse, .authorizedAlways:
             manager.requestLocation()
         case .denied, .restricted:
-            status = "Location off — pick a saved court"
+            status = "Ubicación apagada — elige una cancha guardada"
         @unknown default:
             status = nil
         }
@@ -86,7 +86,7 @@ extension CourtLocationService: CLLocationManagerDelegate {
 
     nonisolated func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
         Task { @MainActor in
-            status = "Could not get GPS"
+            status = "No se pudo obtener GPS"
             CourtStore.shared.refreshNearby(latitude: nil, longitude: nil)
         }
     }

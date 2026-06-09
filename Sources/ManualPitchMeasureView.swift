@@ -22,13 +22,13 @@ struct ManualPitchMeasureView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Theme.Spacing.medium) {
-                Text("Type pitch size in meters. Rename the court later on iPhone.")
+                Text("Ingresa el tamaño de la cancha en metros. Puedes renombrarla luego en el iPhone.")
                     .font(Theme.Typography.caption(size: 11))
                     .foregroundStyle(Theme.Colors.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
 
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("NAME")
+                    Text("NOMBRE")
                         .font(Theme.Typography.statLabel(size: 9))
                         .foregroundStyle(Theme.Colors.textSecondary)
                     Text(defaultName)
@@ -42,8 +42,8 @@ struct ManualPitchMeasureView: View {
                 .background(Theme.Colors.surface)
                 .clipShape(RoundedRectangle(cornerRadius: 10))
 
-                dimensionStepper(label: "Length", value: $lengthM, range: 15...150)
-                dimensionStepper(label: "Width", value: $widthM, range: 10...100)
+                dimensionStepper(label: "Largo", value: $lengthM, range: 15...150)
+                dimensionStepper(label: "Ancho", value: $widthM, range: 10...100)
 
                 Text(String(format: "%.0f × %.0f m", Double(lengthM), Double(widthM)))
                     .font(Theme.Typography.metric(size: 22))
@@ -68,7 +68,7 @@ struct ManualPitchMeasureView: View {
                     )
                     dismiss()
                 } label: {
-                    Text("Save court")
+                    Text("Guardar cancha")
                         .font(Theme.Typography.button(size: 14))
                         .foregroundStyle(Color.black)
                         .frame(maxWidth: .infinity)
@@ -97,20 +97,20 @@ struct ManualPitchMeasureView: View {
     @ViewBuilder
     private var walkSection: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("OR WALK IT")
+            Text("O CAMÍNALA")
                 .font(Theme.Typography.statLabel(size: 9))
                 .foregroundStyle(Theme.Colors.textSecondary)
-            Text("Sets size + orientation. Stand on your goal line for A, the rival goal line for B.")
+            Text("Define tamaño y orientación. Párate en tu línea de gol para A, la del rival para B.")
                 .font(Theme.Typography.caption(size: 11))
                 .foregroundStyle(Theme.Colors.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
             HStack(spacing: 5) {
-                walkButton(walkA == nil ? "Mark A" : "A ✓") {
+                walkButton(walkA == nil ? "Marca A" : "A ✓") {
                     if let lat = location.latitude, let lon = location.longitude {
                         walkA = (lat, lon); applyWalkIfComplete()
                     }
                 }
-                walkButton(walkB == nil ? "Mark B" : "B ✓") {
+                walkButton(walkB == nil ? "Marca B" : "B ✓") {
                     if let lat = location.latitude, let lon = location.longitude {
                         walkB = (lat, lon); applyWalkIfComplete()
                     }
@@ -177,19 +177,19 @@ struct ManualPitchMeasureView: View {
     @ViewBuilder
     private var orientationSection: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("ORIENTATION")
+            Text("ORIENTACIÓN")
                 .font(Theme.Typography.statLabel(size: 9))
                 .foregroundStyle(Theme.Colors.textSecondary)
             Text(capturedHeading == nil
-                 ? "If you typed the size, point toward the rival goal and fix the direction."
-                 : String(format: "Fixed at %.0f°", capturedHeading!))
+                 ? "Si ingresaste el tamaño, apunta hacia el arco rival y fija la dirección."
+                 : String(format: "Fijada en %.0f°", capturedHeading!))
                 .font(Theme.Typography.caption(size: 11))
                 .foregroundStyle(capturedHeading == nil ? Theme.Colors.textSecondary : Theme.Colors.accent)
                 .fixedSize(horizontal: false, vertical: true)
             Button {
                 capturedHeading = location.headingDeg
             } label: {
-                Text(capturedHeading == nil ? "Fix orientation" : "Re-fix")
+                Text(capturedHeading == nil ? "Fijar orientación" : "Refijar")
                     .font(Theme.Typography.button(size: 12))
                     .foregroundStyle(Theme.Colors.accent)
                     .frame(maxWidth: .infinity)

@@ -32,7 +32,7 @@ struct SummaryView: View {
                     PostHogSDK.shared.capture("summary_viewed", properties: props)
                 }
             } else {
-                Text("FULL TIME")
+                Text("FINAL")
                     .font(Theme.Typography.statLabel(size: 10))
                     .foregroundStyle(Theme.Colors.accent)
             }
@@ -44,7 +44,7 @@ struct SummaryView: View {
     }
 
     private var header: some View {
-        Text("FULL TIME")
+        Text("FINAL")
             .font(Theme.Typography.statLabel(size: 10))
             .foregroundStyle(Theme.Colors.accent)
             .tracking(1.4)
@@ -77,7 +77,7 @@ struct SummaryView: View {
                         .font(Theme.Typography.metric(size: 32))
                         .foregroundStyle(.white)
                         .monospacedDigit()
-                    Text("SCORE")
+                    Text("PUNTUACIÓN")
                         .font(Theme.Typography.statLabel(size: 8))
                         .foregroundStyle(Theme.Colors.textSecondary)
                         .tracking(0.8)
@@ -123,7 +123,7 @@ struct SummaryView: View {
         let tiles = statTiles(for: summary)
 
         return VStack(alignment: .leading, spacing: 6) {
-            Text("MATCH STATS")
+            Text("ESTADÍSTICAS")
                 .font(Theme.Typography.statLabel(size: 9))
                 .foregroundStyle(Theme.Colors.textSecondary)
                 .tracking(1)
@@ -156,23 +156,23 @@ struct SummaryView: View {
 
     private func statTiles(for summary: WorkoutSummary) -> [StatTile] {
         var tiles: [StatTile] = [
-            StatTile(label: "TIME", value: summary.durationText, icon: "clock.fill"),
+            StatTile(label: "TIEMPO", value: summary.durationText, icon: "clock.fill"),
         ]
 
         if summary.distanceM > 0 {
             tiles.append(StatTile(label: "DIST", value: formatDistance(summary.distanceM), icon: "figure.run"))
         }
         if let hr = summary.hrAvg {
-            tiles.append(StatTile(label: "AVG HR", value: "\(hr)", icon: "heart.fill"))
+            tiles.append(StatTile(label: "FC PROM", value: "\(hr)", icon: "heart.fill"))
         }
         if let maxHr = summary.hrMax {
-            tiles.append(StatTile(label: "MAX HR", value: "\(maxHr)", icon: "heart.circle.fill"))
+            tiles.append(StatTile(label: "FC MÁX", value: "\(maxHr)", icon: "heart.circle.fill"))
         }
         if summary.sprints > 0 {
             tiles.append(StatTile(label: "SPRINTS", value: "\(summary.sprints)", icon: "hare.fill"))
         }
         if let speed = summary.speedMaxKmh, speed > 0 {
-            tiles.append(StatTile(label: "TOP SPD", value: String(format: "%.1f", speed), icon: "speedometer"))
+            tiles.append(StatTile(label: "VEL MÁX", value: String(format: "%.1f", speed), icon: "speedometer"))
         }
         if let intensity = summary.intensity {
             tiles.append(StatTile(label: "INT", value: String(format: "%.0f", intensity), icon: "flame.fill"))
@@ -185,7 +185,7 @@ struct SummaryView: View {
         Button {
             manager.reset()
         } label: {
-            Text("DONE")
+            Text("LISTO")
                 .font(Theme.Typography.button(size: 12))
                 .foregroundStyle(Color.black)
                 .frame(maxWidth: .infinity)
