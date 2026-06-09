@@ -111,6 +111,7 @@ final class PhoneSync: NSObject, WCSessionDelegate, @unchecked Sendable {
         widthM: Double,
         latitude: Double?,
         longitude: Double?,
+        headingDeg: Double? = nil,
         measurementMethod: String,
         matchType: String?,
         surface: String?
@@ -125,6 +126,7 @@ final class PhoneSync: NSObject, WCSessionDelegate, @unchecked Sendable {
         ]
         if let latitude { payload["latitude"] = latitude }
         if let longitude { payload["longitude"] = longitude }
+        if let headingDeg { payload["heading_deg"] = headingDeg }
         if let matchType { payload["type"] = matchType }
         if let surface { payload["surface"] = surface }
         WCSession.default.transferUserInfo(payload)

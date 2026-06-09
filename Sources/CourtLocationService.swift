@@ -10,6 +10,8 @@ final class CourtLocationService: NSObject, ObservableObject {
 
     @Published private(set) var latitude: Double?
     @Published private(set) var longitude: Double?
+    /// Live compass heading (degrees from true north) while measuring a pitch.
+    @Published private(set) var headingDeg: Double?
     @Published private(set) var status: String?
 
     private let manager = CLLocationManager()
@@ -17,7 +19,9 @@ final class CourtLocationService: NSObject, ObservableObject {
     override init() {
         super.init()
         manager.delegate = self
-        manager.desiredAccuracy = kCLLocationAccuracyHundredMeters
+        // Pitch-level precision: a 100 m accuracy fix is useless for geo-
+        // referencing a ~100 m field, so request the best available.
+        manager.desiredAccuracy = kCLLocationAccuracyBest
     }
 
     func requestLocation() {
@@ -33,6 +37,16 @@ final class CourtLocationService: NSObject, ObservableObject {
             status = nil
         }
     }
+
+    /// Starts compass updates so `headingDeg` tracks where the user points.
+    func startHeading() {
+        guard CLLocationManager.headingAvailable() else { return }
+        manager.startUpdatingHeading()
+    }
+
+    func stopHeading() {
+        manager.stopUpdatingHeading()
+    }
 }
 
 extension CourtLocationService: CLLocationManagerDelegate {
@@ -45,6 +59,15 @@ extension CourtLocationService: CLLocationManagerDelegate {
             Self.sharedLastLongitude = longitude
             status = nil
             CourtStore.shared.refreshNearby(latitude: latitude, longitude: longitude)
+        }
+    }
+
+    nonisolated func locationManager(_ manager: CLLocationManager, didUpdateHeading newHeading: CLHeading) {
+        // trueHeading is -1 when the heading is invalid (needs calibration).
+        guard newHeading.trueHeading >= 0 else { return }
+        let heading = newHeading.trueHeading
+        Task { @MainActor in
+            self.headingDeg = heading
         }
     }
 

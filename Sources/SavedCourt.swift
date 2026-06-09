@@ -10,6 +10,8 @@ struct SavedCourt: Equatable, Codable, Identifiable {
     var playCount: Int
     var lengthM: Double?
     var widthM: Double?
+    /// Bearing of the long axis (own goal -> rival goal), degrees from true north.
+    var headingDeg: Double?
     var measurementMethod: String?
 
     var distanceM: Double?

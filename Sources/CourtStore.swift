@@ -49,6 +49,7 @@ final class CourtStore: ObservableObject {
         widthM: Double,
         latitude: Double?,
         longitude: Double?,
+        headingDeg: Double? = nil,
         measurementMethod: String = "manual",
         matchType: String? = nil,
         surface: String? = nil
@@ -65,6 +66,7 @@ final class CourtStore: ObservableObject {
             playCount: 0,
             lengthM: lengthM,
             widthM: widthM,
+            headingDeg: headingDeg,
             measurementMethod: measurementMethod
         ))
         persist()
@@ -75,6 +77,7 @@ final class CourtStore: ObservableObject {
             widthM: widthM,
             latitude: lat,
             longitude: lon,
+            headingDeg: headingDeg,
             measurementMethod: measurementMethod,
             matchType: matchType,
             surface: surface
