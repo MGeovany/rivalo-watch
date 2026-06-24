@@ -180,6 +180,7 @@ struct StartView: View {
                         title: option.label,
                         isSelected: selectedMode == option
                     ) {
+                        WatchHaptics.selection()
                         selectedMode = option
                     }
                 }
@@ -203,6 +204,7 @@ struct StartView: View {
                             isSelected: selectedSurface == option,
                             compact: true
                         ) {
+                            WatchHaptics.selection()
                             selectedSurface = option
                         }
                     }
@@ -225,6 +227,7 @@ struct StartView: View {
                     subtitle: "Configurar luego en el iPhone",
                     isSelected: selectedCourtId == nil
                 ) {
+                    WatchHaptics.selection()
                     selectedCourtId = nil
                 }
 
@@ -234,6 +237,7 @@ struct StartView: View {
                         subtitle: courtSubtitle(court),
                         isSelected: selectedCourtId == court.id
                     ) {
+                        WatchHaptics.selection()
                         selectedCourtId = court.id
                     }
                 }
@@ -288,6 +292,7 @@ private struct WatchFootballFormatGrid: View {
         LazyVGrid(columns: columns, spacing: 6) {
             ForEach(FootballFormatOption.allCases) { option in
                 Button {
+                    WatchHaptics.selection()
                     selection = option
                 } label: {
                     Text(option.watchCount)

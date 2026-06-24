@@ -174,6 +174,7 @@ final class WorkoutManager: NSObject, ObservableObject {
             lastSampleDistanceM = 0
             tickElapsed()
             phase = .running
+            WatchHaptics.matchStarted()
             startTimer()
             pathRecorder.start()
             WorkoutLog.info("phase=running clock=\(Int(elapsed))s (live)")
@@ -188,6 +189,7 @@ final class WorkoutManager: NSObject, ObservableObject {
             startDataCollection(at: start, builder: builder)
         } catch {
             errorMessage = error.localizedDescription
+            WatchHaptics.error()
             WorkoutLog.error("start failed: \(error.localizedDescription)")
             PostHogAnalytics.captureError(error, context: "workout_start")
             discardStaleWorkoutSession()
@@ -197,6 +199,7 @@ final class WorkoutManager: NSObject, ObservableObject {
     func pause() {
         session?.pause()
         phase = .paused
+        WatchHaptics.paused()
         PostHogSDK.shared.capture("match_paused", properties: [
             "elapsed_s": Int(elapsed),
             "mode": mode,
@@ -206,6 +209,7 @@ final class WorkoutManager: NSObject, ObservableObject {
     func resume() {
         session?.resume()
         phase = .running
+        WatchHaptics.resumed()
         PostHogSDK.shared.capture("match_resumed", properties: [
             "elapsed_s": Int(elapsed),
             "mode": mode,
@@ -225,6 +229,7 @@ final class WorkoutManager: NSObject, ObservableObject {
         session?.pause()
         phase = .paused
         matchSegment = .halftimeBreak
+        WatchHaptics.halftime()
         breakStartedAt = Date()
         breakElapsed = 0
         startBreakTimer()
@@ -255,6 +260,7 @@ final class WorkoutManager: NSObject, ObservableObject {
         breakTimerTask?.cancel()
         session?.resume()
         phase = .running
+        WatchHaptics.secondHalfStarted()
         // Push the resumed state immediately so the iPhone leaves the break
         // view without waiting for the next 5s timer tick.
         pushLiveEvent()
@@ -279,6 +285,7 @@ final class WorkoutManager: NSObject, ObservableObject {
         breakStartedAt = nil
         session?.resume()
         phase = .running
+        WatchHaptics.destructive()
         PostHogSDK.shared.capture("first_half_restarted", properties: [
             "elapsed_s": Int(elapsed),
             "mode": mode,
@@ -350,6 +357,7 @@ final class WorkoutManager: NSObject, ObservableObject {
 
         // Transition the UI now — the user sees the summary screen at once.
         phase = .ended
+        WatchHaptics.matchEnded()
         self.session = nil
         self.builder = nil
         self.startDate = nil
@@ -700,6 +708,7 @@ extension WorkoutManager: HKWorkoutSessionDelegate {
         PostHogAnalytics.captureError(error, context: "workout_session")
         Task { @MainActor [weak self] in
             self?.errorMessage = message
+            WatchHaptics.error()
         }
     }
 }

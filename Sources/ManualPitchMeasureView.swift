@@ -66,6 +66,7 @@ struct ManualPitchMeasureView: View {
                         matchType: matchType,
                         surface: surface
                     )
+                    WatchHaptics.saved()
                     dismiss()
                 } label: {
                     Text("Guardar cancha")

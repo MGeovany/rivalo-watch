@@ -41,9 +41,9 @@ targets:
           UIColorName: LaunchBackground
           UIImageName: Isotipo
           UIImageRespectsSafeAreaInsets: true
-        NSLocationWhenInUseUsageDescription: Rivalo uses your location to suggest courts you have played at before.
-        NSHealthShareUsageDescription: Rivalo reads your heart rate, distance and energy during a match to build your performance summary.
-        NSHealthUpdateUsageDescription: Rivalo saves each match as a workout in the Health app.
+        NSLocationWhenInUseUsageDescription: Rivalo usa tu ubicación para sugerir canchas donde has jugado antes.
+        NSHealthShareUsageDescription: Rivalo lee tu frecuencia cardíaca, distancia y energía durante un partido para construir tu resumen de rendimiento.
+        NSHealthUpdateUsageDescription: Rivalo guarda cada partido como un entrenamiento en la app Salud.
         PostHogProjectToken: phc_C6YFLY4Rn6vSqQegH4G4c3nR9seBPZyxqwTpx94RQGZz
         PostHogHost: https://us.i.posthog.com
         WKBackgroundModes:

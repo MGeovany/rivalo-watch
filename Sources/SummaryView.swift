@@ -183,6 +183,7 @@ struct SummaryView: View {
 
     private var doneButton: some View {
         Button {
+            WatchHaptics.selection()
             manager.reset()
         } label: {
             Text("LISTO")
